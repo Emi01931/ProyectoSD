@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoTracker Web - Sistemas Distribuidos</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #1a1a2e;
+            --secondary-color: #16213e;
+            --accent-color: #0f3460;
+            --gold-color: #f39c12;
+            --green-color: #27ae60;
+            --red-color: #e74c3c;
+            --text-light: #ecf0f1;
+            --text-dark: #2c3e50;
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 50%, var(--accent-color) 100%);
+            color: var(--text-light);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo i {
+            font-size: 2rem;
+            color: var(--gold-color);
+        }
+
+        .logo h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, var(--gold-color), #fff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-info {
+            text-align: right;
+        }
+
+        .last-update {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        /* Navigation */
+        .nav-tabs {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .nav-tab {
+            background: var(--card-bg);
+            color: var(--text-dark);
+            padding: 1rem 1.5rem;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border: 2px solid transparent;
+        }
+
+        .nav-tab:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow);
+            border-color: var(--gold-color);
+        }
+
+        .nav-tab.active {
+            background: var(--gold-color);
+            color: white;
+            transform: translateY(-3px);
+            box-shadow: var(--shadow);
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .section {
+            display: none;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Crypto Grid */
+        .crypto-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .crypto-card {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .crypto-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--gold-color), var(--green-color));
+        }
+
+        .crypto-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .crypto-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .crypto-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, var(--gold-color), var(--green-color));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+        }
+
+        .crypto-info h3 {
+            color: var(--text-dark);
+            font-size: 1.2rem;
+            margin-bottom: 0.2rem;
+        }
+
+        .crypto-symbol {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .crypto-price {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--green-color);
+            text-align: center;
+            margin-top: 1rem;
+        }
+
+        /* Forms */
+        .form-container {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 2rem;
+            margin: 2rem 0;
+            color: var(--text-dark);
+            box-shadow: var(--shadow);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        .form-group select,
+        .form-group input {
+            padding: 0.8rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--gold-color);
+        }
+
+        .btn {
+            background: linear-gradient(45deg, var(--gold-color), var(--green-color));
+            color: white;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Chart Container */
+        .chart-container {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 2rem;
+            margin: 2rem 0;
+            text-align: center;
+            min-height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-dark);
+            box-shadow: var(--shadow);
+        }
+
+        .chart-placeholder {
+            text-align: center;
+            color: #666;
+        }
+
+        .chart-placeholder i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            color: var(--gold-color);
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--gold-color);
+            font-weight: 600;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(243, 156, 18, 0.3);
+            border-top: 3px solid var(--gold-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Footer */
+        .footer {
+            background: rgba(0, 0, 0, 0.3);
+            text-align: center;
+            padding: 2rem;
+            margin-top: 4rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .nav-tabs {
+                justify-content: center;
+            }
+
+            .crypto-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Status Indicator */
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green-color);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .section-title {
+            text-align: center;
+            margin-bottom: 2rem;
+            color: var(--text-light);
+        }
+
+        .section-title h2 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(45deg, var(--gold-color), #fff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .section-title p {
+            opacity: 0.8;
+            font-size: 1.1rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <i class="fab fa-bitcoin"></i>
+                <div>
+                    <h1>CryptoTracker Web</h1>
+                    <p style="font-size: 0.8rem; opacity: 0.8;">Proyecto Final - Sistemas Distribuidos</p>
+                </div>
+            </div>
+            <div class="header-info">
+                <div class="status-indicator">
+                    <span class="status-dot"></span>
+                    <span>En vivo</span>
+                </div>
+                <div class="last-update" id="lastUpdate">
+                    Última actualización: --:--
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="nav-tabs">
+        <div class="nav-tab active" data-section="prices">
+            <i class="fas fa-coins"></i>
+            Precios Actuales
+        </div>
+        <div class="nav-tab" data-section="single-chart">
+            <i class="fas fa-chart-line"></i>
+            Gráfico Individual
+        </div>
+        <div class="nav-tab" data-section="all-charts">
+            <i class="fas fa-chart-area"></i>
+            Todas las Cryptos
+        </div>
+        <div class="nav-tab" data-section="compare">
+            <i class="fas fa-balance-scale"></i>
+            Comparar
+        </div>
+        <div class="nav-tab" data-section="regression">
+            <i class="fas fa-calculator"></i>
+            Regresión Lineal
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Section 1: Current Prices -->
+        <section id="prices" class="section active">
+            <div class="section-title">
+                <h2>Precios en Tiempo Real</h2>
+                <p>Las 10 principales criptomonedas por capitalización de mercado</p>
+            </div>
+            <div id="crypto-container" class="crypto-grid">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Cargando datos de criptomonedas...
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: Single Crypto Chart -->
+        <section id="single-chart" class="section">
+            <div class="section-title">
+                <h2>Gráfico de Variación Individual</h2>
+                <p>Analiza la evolución de precio de una criptomoneda específica</p>
+            </div>
+            
+            <div class="form-container">
+                <h3 style="margin-bottom: 1rem;"><i class="fas fa-cog"></i> Configuración del Gráfico</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="single-crypto-select">Criptomoneda:</label>
+                        <select id="single-crypto-select">
+                            <option value="">Selecciona una criptomoneda</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="single-hours">Horas (1-24):</label>
+                        <input type="number" id="single-hours" min="1" max="24" value="24" placeholder="24">
+                    </div>
+                    <div class="form-group">
+                        <button class="btn" onclick="generateSingleChart()">
+                            <i class="fas fa-chart-line"></i>
+                            Generar Gráfico
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-container" id="single-chart-result">
+                <div class="chart-placeholder">
+                    <i class="fas fa-chart-line"></i>
+                    <h3>Selecciona una criptomoneda y haz clic en "Generar Gráfico"</h3>
+                    <p>Se mostrará la variación de precio en el período seleccionado</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: All Cryptos Chart -->
+        <section id="all-charts" class="section">
+            <div class="section-title">
+                <h2>Gráficos de Todas las Criptomonedas</h2>
+                <p>Visualiza la variación de todas las criptomonedas simultáneamente</p>
+            </div>
+
+            <div class="form-container">
+                <h3 style="margin-bottom: 1rem;"><i class="fas fa-cog"></i> Configuración</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="all-hours">Horas (1-24):</label>
+                        <input type="number" id="all-hours" min="1" max="24" value="24" placeholder="24">
+                    </div>
+                    <div class="form-group">
+                        <button class="btn" onclick="generateAllCharts()">
+                            <i class="fas fa-chart-area"></i>
+                            Generar Gráficos
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-container" id="all-charts-result">
+                <div class="chart-placeholder">
+                    <i class="fas fa-chart-area"></i>
+                    <h3>Haz clic en "Generar Gráficos"</h3>
+                    <p>Se mostrarán los gráficos de variación de las 10 criptomonedas</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Compare Cryptos -->
+        <section id="compare" class="section">
+            <div class="section-title">
+                <h2>Comparación de Criptomonedas</h2>
+                <p>Superpone gráficos de múltiples criptomonedas para comparar tendencias</p>
+            </div>
+
+            <div class="form-container">
+                <h3 style="margin-bottom: 1rem;"><i class="fas fa-cog"></i> Configuración de Comparación</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="compare-cryptos">Criptomonedas (mantén Ctrl para seleccionar múltiples):</label>
+                        <select id="compare-cryptos" multiple style="height: 120px;">
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="compare-start">Hora de inicio (0-23):</label>
+                        <input type="number" id="compare-start" min="0" max="23" value="7" placeholder="7">
+                    </div>
+                    <div class="form-group">
+                        <label for="compare-end">Hora de fin (1-24):</label>
+                        <input type="number" id="compare-end" min="1" max="24" value="9" placeholder="9">
+                    </div>
+                    <div class="form-group">
+                        <button class="btn" onclick="generateCompareChart()">
+                            <i class="fas fa-balance-scale"></i>
+                            Comparar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-container" id="compare-chart-result">
+                <div class="chart-placeholder">
+                    <i class="fas fa-balance-scale"></i>
+                    <h3>Selecciona criptomonedas y rango horario</h3>
+                    <p>Se superpondrán los gráficos con diferentes colores</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 5: Linear Regression -->
+        <section id="regression" class="section">
+            <div class="section-title">
+                <h2>Análisis de Regresión Lineal</h2>
+                <p>Calcula la ecuación de regresión lineal y tendencia de precio</p>
+            </div>
+
+            <div class="form-container">
+                <h3 style="margin-bottom: 1rem;"><i class="fas fa-cog"></i> Configuración de Regresión</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="regression-crypto">Criptomoneda:</label>
+                        <select id="regression-crypto">
+                            <option value="">Selecciona una criptomoneda</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="regression-start">Hora de inicio (0-23):</label>
+                        <input type="number" id="regression-start" min="0" max="23" value="10" placeholder="10">
+                    </div>
+                    <div class="form-group">
+                        <label for="regression-end">Hora de fin (1-24):</label>
+                        <input type="number" id="regression-end" min="1" max="24" value="12" placeholder="12">
+                    </div>
+                    <div class="form-group">
+                        <button class="btn" onclick="generateRegressionChart()">
+                            <i class="fas fa-calculator"></i>
+                            Calcular Regresión
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-container" id="regression-chart-result">
+                <div class="chart-placeholder">
+                    <i class="fas fa-calculator"></i>
+                    <h3>Selecciona parámetros y genera la regresión</h3>
+                    <p>Se mostrará el gráfico con puntos, línea de regresión y ecuación</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>&copy; 2025 CryptoTracker Web - Proyecto Final de Sistemas Distribuidos</p>
+        <p style="opacity: 0.7; margin-top: 0.5rem;">Desarrollado por: [Nombres del equipo]</p>
+    </footer>
+
+    <script src="script.js"></script>
+
+    </body>
+</html>
