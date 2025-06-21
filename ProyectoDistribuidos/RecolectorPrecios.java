@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
+    //Corri xampp en el puerto 3308 porque es el que tenia por defecto MySQL Worbench
     //Si se quiere probar el proyecto en local correrlo de esta forma.
 // javac -cp ".;lib/mysql-connector-j-9.3.0.jar" RecolectorPrecios.java
 // java -cp ".;lib/mysql-connector-j-9.3.0.jar" RecolectorPrecios
