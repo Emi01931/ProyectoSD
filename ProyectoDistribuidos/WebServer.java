@@ -7,9 +7,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.File;
 import java.nio.file.Files;
-import java.math.BigInteger;
 import java.net.InetSocketAddress;
-import java.util.Arrays;
 import java.util.concurrent.Executors;
 
 public class WebServer {

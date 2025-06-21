@@ -1,5 +1,4 @@
 import java.io.FileWriter;
-import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -9,7 +8,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 public class RecolectorPrecios {
-    private static final String URL_API = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,tether,binancecoin,solana,usd-coin,ripple,dogecoin,cardano,avalanche&vs_currencies=usd";
+    private static final String URL_API = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,ripple,solana,tron,dogecoin,cardano,hyperliquid,bitcoin-cash,chainlink&vs_currencies=usd";
 
     public static void main(String[] args) {
         Timer temporizador = new Timer();
@@ -41,14 +40,14 @@ public class RecolectorPrecios {
                 Map<String, String[]> criptos = Map.of(
                     "bitcoin", new String[]{"Bitcoin", "BTC"},
                     "ethereum", new String[]{"Ethereum", "ETH"},
-                    "tether", new String[]{"Tether", "USDT"},
-                    "binancecoin", new String[]{"BNB", "BNB"},
-                    "solana", new String[]{"Solana", "SOL"},
-                    "usd-coin", new String[]{"USDC", "USDC"},
                     "ripple", new String[]{"XRP", "XRP"},
+                    "solana", new String[]{"Solana", "SOL"},
+                    "tron", new String[]{"TRON", "TRX"},
                     "dogecoin", new String[]{"Dogecoin", "DOGE"},
                     "cardano", new String[]{"Cardano", "ADA"},
-                    "avalanche", new String[]{"Avalanche", "AVAX"}
+                    "hyperliquid", new String[]{"Hyperliquid", "HYPE"},
+                    "bitcoin-cash", new String[]{"Bitcoin Cash", "BCH"},
+                    "chainlink", new String[]{"Chainlink", "LINK"}
                 );
 
                 // Procesamiento manual del JSON
