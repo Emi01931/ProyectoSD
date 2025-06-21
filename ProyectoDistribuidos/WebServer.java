@@ -5,15 +5,23 @@ import com.sun.net.httpserver.HttpServer;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.File;
-import java.nio.file.Files;
+import java.sql.*;
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+//  Para correr el proyecto de manera local
+// javac -cp ".;lib/mysql-connector-j-8.0.28.jar" WebServer.java
+// java -cp ".;lib/mysql-connector-j-8.0.28.jar" WebServer
+
 
 public class WebServer {
     private static final String STATUS_ENDPOINT = "/status";
     private static final String PRECIOS_ENDPOINT = "/precios";
-
+    private static final String DB_URL = "jdbc:mysql://localhost:3306/criptomonedas_db?user=root&password=&useSSL=false&serverTimezone=UTC";
+    
     private final int port;
     private HttpServer server;
 
@@ -45,7 +53,7 @@ public class WebServer {
         HttpContext preciosContext = server.createContext(PRECIOS_ENDPOINT);
 
         statusContext.setHandler(this::handleStatusCheckRequest);
-        preciosContext.setHandler(this::handlePreciosRequest); // <- nuevo handler
+        preciosContext.setHandler(this::handlePreciosRequest);
 
         server.setExecutor(Executors.newFixedThreadPool(8));
         server.start();
@@ -61,22 +69,89 @@ public class WebServer {
         sendResponse(responseMessage.getBytes(), exchange, "text/plain");
     }
 
-    // 🎯 NUEVO ENDPOINT: /precios
     private void handlePreciosRequest(HttpExchange exchange) throws IOException {
         if (!exchange.getRequestMethod().equalsIgnoreCase("get")) {
             exchange.close();
             return;
         }
 
-        File archivo = new File("precios.json");
-        if (!archivo.exists()) {
-            String error = "{\"error\": \"El archivo precios.json no existe\"}";
+        try {
+            List<CryptoPrice> precios = obtenerUltimosPreciosDeBD();
+            String jsonResponse = generarJsonManual(precios);
+            sendResponse(jsonResponse.getBytes(), exchange, "application/json");
+        } catch (SQLException e) {
+            e.printStackTrace();
+            String error = "{\"error\": \"Error al consultar la base de datos\"}";
             sendResponse(error.getBytes(), exchange, "application/json");
-            return;
         }
+    }
 
-        byte[] contenido = Files.readAllBytes(archivo.toPath());
-        sendResponse(contenido, exchange, "application/json");
+    private String generarJsonManual(List<CryptoPrice> precios) {
+        StringBuilder json = new StringBuilder("[");
+        for (int i = 0; i < precios.size(); i++) {
+            CryptoPrice precio = precios.get(i);
+            json.append(String.format(
+                "{\"name\":\"%s\",\"symbol\":\"%s\",\"price\":%.2f}",
+                escapeJson(precio.name), 
+                escapeJson(precio.symbol), 
+                precio.price
+            ));
+            if (i < precios.size() - 1) {
+                json.append(",");
+            }
+        }
+        json.append("]");
+        return json.toString();
+    }
+
+    private String escapeJson(String input) {
+        return input.replace("\"", "\\\"")
+                   .replace("\\", "\\\\")
+                   .replace("/", "\\/")
+                   .replace("\b", "\\b")
+                   .replace("\f", "\\f")
+                   .replace("\n", "\\n")
+                   .replace("\r", "\\r")
+                   .replace("\t", "\\t");
+    }
+
+    private List<CryptoPrice> obtenerUltimosPreciosDeBD() throws SQLException {
+        List<CryptoPrice> precios = new ArrayList<>();
+        
+        // Mapeo de tablas a nombres y símbolos
+        Map<String, String[]> criptos = Map.of(
+            "bitcoin", new String[]{"Bitcoin", "BTC"},
+            "ethereum", new String[]{"Ethereum", "ETH"},
+            "ripple", new String[]{"XRP", "XRP"},
+            "solana", new String[]{"Solana", "SOL"},
+            "tron", new String[]{"TRON", "TRX"},
+            "dogecoin", new String[]{"Dogecoin", "DOGE"},
+            "cardano", new String[]{"Cardano", "ADA"},
+            "hyperliquid", new String[]{"Hyperliquid", "HYPE"},
+            "bitcoin_cash", new String[]{"Bitcoin Cash", "BCH"},
+            "chainlink", new String[]{"Chainlink", "LINK"}
+        );
+
+        try (Connection conexion = DriverManager.getConnection(DB_URL)) {
+            for (Map.Entry<String, String[]> entry : criptos.entrySet()) {
+                String tabla = entry.getKey();
+                String nombre = entry.getValue()[0];
+                String simbolo = entry.getValue()[1];
+                
+                String sql = "SELECT precio FROM " + tabla + " ORDER BY fecha_registro DESC LIMIT 1";
+                
+                try (PreparedStatement pstmt = conexion.prepareStatement(sql);
+                     ResultSet rs = pstmt.executeQuery()) {
+                    
+                    if (rs.next()) {
+                        double precio = rs.getDouble("precio");
+                        precios.add(new CryptoPrice(nombre, simbolo, precio));
+                    }
+                }
+            }
+        }
+        
+        return precios;
     }
 
     private void sendResponse(byte[] responseBytes, HttpExchange exchange, String contentType) throws IOException {
@@ -89,5 +164,18 @@ public class WebServer {
             outputStream.write(responseBytes);
         }
         exchange.close();
+    }
+
+    // Clase interna para representar los datos de precios
+    private static class CryptoPrice {
+        final String name;
+        final String symbol;
+        final double price;
+
+        public CryptoPrice(String name, String symbol, double price) {
+            this.name = name;
+            this.symbol = symbol;
+            this.price = price;
+        }
     }
 }
