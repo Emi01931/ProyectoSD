@@ -12,14 +12,13 @@ import java.util.TimerTask;
 
     //Corri xampp en el puerto 3308 porque es el que tenia por defecto MySQL Worbench
     //Si se quiere probar el proyecto en local correrlo de esta forma.
-// javac -cp ".;lib/mysql-connector-j-9.3.0.jar" RecolectorPrecios.java
-// java -cp ".;lib/mysql-connector-j-9.3.0.jar" RecolectorPrecios
+// javac -cp ".;lib/*" RecolectorPrecios.java
+// java -cp ".;lib/*" RecolectorPrecios
 
 public class RecolectorPrecios {
     private static final String URL_API = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,ripple,solana,tron,dogecoin,cardano,hyperliquid,bitcoin-cash,chainlink&vs_currencies=usd";
     //private static final String DB_URL = "jdbc:mysql://<YOUR_INSTANCE_CONNECTION_NAME>/criptomonedas_db?user=<YOUR_DB_USER>&password=<YOUR_DB_PASSWORD>";
-    //cambiar el localhost por el que corresponda en tu pc
-    private static final String DB_URL = "jdbc:mysql://localhost:3306/criptomonedas_db?user=root&password=&useSSL=false&allowPublicKeyRetrieval=true";
+    private static final String DB_URL = "jdbc:mysql://localhost:3308/criptomonedas_db?user=root&password=&useSSL=false&allowPublicKeyRetrieval=true";
 
     public static void main(String[] args) {
         Timer temporizador = new Timer();

@@ -14,9 +14,13 @@ import java.util.*;
 import java.util.List;
 import java.util.concurrent.Executors;
 
+// Ejemplo de peticion
+//http://localhost:8081/grafico?crypto=bitcoin&horas=3
+
 public class GraficoService {
 
-    private static final String DB_URL = "jdbc:mysql://localhost:3306/criptomonedas_db?user=root&password=&useSSL=false&serverTimezone=UTC";
+    //private static final String DB_URL = "jdbc:mysql://localhost:3306/criptomonedas_db?user=root&password=&useSSL=false&serverTimezone=UTC";
+    private static final String DB_URL = "jdbc:mysql://localhost:3308/criptomonedas_db?user=root&password=&useSSL=false&serverTimezone=UTC";
     private static final int PORT = 8081;
 
     public static void main(String[] args) throws IOException {
