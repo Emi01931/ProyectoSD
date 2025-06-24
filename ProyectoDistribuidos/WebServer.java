@@ -16,12 +16,11 @@ import java.util.Map;
 // javac -cp ".;lib/mysql-connector-j-8.0.28.jar" WebServer.java
 // java -cp ".;lib/mysql-connector-j-8.0.28.jar" WebServer
 
-
 public class WebServer {
     private static final String STATUS_ENDPOINT = "/status";
     private static final String PRECIOS_ENDPOINT = "/precios";
     private static final String DB_URL = "jdbc:mysql://localhost:3306/criptomonedas_db?user=root&password=&useSSL=false&serverTimezone=UTC";
-    
+
     private final int port;
     private HttpServer server;
 
@@ -91,11 +90,10 @@ public class WebServer {
         for (int i = 0; i < precios.size(); i++) {
             CryptoPrice precio = precios.get(i);
             json.append(String.format(
-                "{\"name\":\"%s\",\"symbol\":\"%s\",\"price\":%.2f}",
-                escapeJson(precio.name), 
-                escapeJson(precio.symbol), 
-                precio.price
-            ));
+                    "{\"name\":\"%s\",\"symbol\":\"%s\",\"price\":%.2f}",
+                    escapeJson(precio.name),
+                    escapeJson(precio.symbol),
+                    precio.price));
             if (i < precios.size() - 1) {
                 json.append(",");
             }
@@ -106,43 +104,50 @@ public class WebServer {
 
     private String escapeJson(String input) {
         return input.replace("\"", "\\\"")
-                   .replace("\\", "\\\\")
-                   .replace("/", "\\/")
-                   .replace("\b", "\\b")
-                   .replace("\f", "\\f")
-                   .replace("\n", "\\n")
-                   .replace("\r", "\\r")
-                   .replace("\t", "\\t");
+                .replace("\\", "\\\\")
+                .replace("/", "\\/")
+                .replace("\b", "\\b")
+                .replace("\f", "\\f")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
     }
 
     private List<CryptoPrice> obtenerUltimosPreciosDeBD() throws SQLException {
         List<CryptoPrice> precios = new ArrayList<>();
-        
-        // Mapeo de tablas a nombres y símbolos
+
+        try {
+            // 👇 ESTA LÍNEA ES OBLIGATORIA si el driver no se autoregistra
+            Class.forName("com.mysql.cj.jdbc.Driver");
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+            throw new SQLException("Driver JDBC no encontrado");
+        }
+
+        // Mapeo de tablas
         Map<String, String[]> criptos = Map.of(
-            "bitcoin", new String[]{"Bitcoin", "BTC"},
-            "ethereum", new String[]{"Ethereum", "ETH"},
-            "ripple", new String[]{"XRP", "XRP"},
-            "solana", new String[]{"Solana", "SOL"},
-            "tron", new String[]{"TRON", "TRX"},
-            "dogecoin", new String[]{"Dogecoin", "DOGE"},
-            "cardano", new String[]{"Cardano", "ADA"},
-            "hyperliquid", new String[]{"Hyperliquid", "HYPE"},
-            "bitcoin_cash", new String[]{"Bitcoin Cash", "BCH"},
-            "chainlink", new String[]{"Chainlink", "LINK"}
-        );
+                "bitcoin", new String[] { "Bitcoin", "BTC" },
+                "ethereum", new String[] { "Ethereum", "ETH" },
+                "ripple", new String[] { "XRP", "XRP" },
+                "solana", new String[] { "Solana", "SOL" },
+                "tron", new String[] { "TRON", "TRX" },
+                "dogecoin", new String[] { "Dogecoin", "DOGE" },
+                "cardano", new String[] { "Cardano", "ADA" },
+                "hyperliquid", new String[] { "Hyperliquid", "HYPE" },
+                "bitcoin_cash", new String[] { "Bitcoin Cash", "BCH" },
+                "chainlink", new String[] { "Chainlink", "LINK" });
 
         try (Connection conexion = DriverManager.getConnection(DB_URL)) {
             for (Map.Entry<String, String[]> entry : criptos.entrySet()) {
                 String tabla = entry.getKey();
                 String nombre = entry.getValue()[0];
                 String simbolo = entry.getValue()[1];
-                
+
                 String sql = "SELECT precio FROM " + tabla + " ORDER BY fecha_registro DESC LIMIT 1";
-                
+
                 try (PreparedStatement pstmt = conexion.prepareStatement(sql);
-                     ResultSet rs = pstmt.executeQuery()) {
-                    
+                        ResultSet rs = pstmt.executeQuery()) {
+
                     if (rs.next()) {
                         double precio = rs.getDouble("precio");
                         precios.add(new CryptoPrice(nombre, simbolo, precio));
@@ -150,7 +155,7 @@ public class WebServer {
                 }
             }
         }
-        
+
         return precios;
     }
 

@@ -18,7 +18,8 @@ import java.util.TimerTask;
 public class RecolectorPrecios {
     private static final String URL_API = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,ripple,solana,tron,dogecoin,cardano,hyperliquid,bitcoin-cash,chainlink&vs_currencies=usd";
     //private static final String DB_URL = "jdbc:mysql://<YOUR_INSTANCE_CONNECTION_NAME>/criptomonedas_db?user=<YOUR_DB_USER>&password=<YOUR_DB_PASSWORD>";
-    private static final String DB_URL = "jdbc:mysql://localhost:3308/criptomonedas_db?user=root&password=&useSSL=false&allowPublicKeyRetrieval=true";
+    //cambiar el localhost por el que corresponda en tu pc
+    private static final String DB_URL = "jdbc:mysql://localhost:3306/criptomonedas_db?user=root&password=&useSSL=false&allowPublicKeyRetrieval=true";
 
     public static void main(String[] args) {
         Timer temporizador = new Timer();
