@@ -19,8 +19,9 @@ import java.util.concurrent.Executors;
 
 public class GraficoService {
 
-    //private static final String DB_URL = "jdbc:mysql://localhost:3306/criptomonedas_db?user=root&password=&useSSL=false&serverTimezone=UTC";
-    private static final String DB_URL = "jdbc:mysql://localhost:3308/criptomonedas_db?user=root&password=&useSSL=false&serverTimezone=UTC";
+    // private static final String DB_URL =
+    // "jdbc:mysql://localhost:3306/criptomonedas_db?user=root&password=&useSSL=false&serverTimezone=UTC";
+    private static final String DB_URL = "jdbc:mysql://localhost:3306/criptomonedas_db?user=root&password=&useSSL=false&serverTimezone=UTC";
     private static final int PORT = 8081;
 
     public static void main(String[] args) throws IOException {
@@ -83,66 +84,50 @@ public class GraficoService {
             throw new SQLException("Driver JDBC no encontrado");
         }
 
-        if (horas == 1) {
-            // Obtener la última hora completa
-            String horaSQL = String.format("""
-                        SELECT MAX(DATE_FORMAT(fecha_registro, '%%Y-%%m-%%d %%H:00:00')) AS ultima_hora FROM %s
-                    """, crypto);
+        try (Connection conn = DriverManager.getConnection(DB_URL)) {
 
-            String ultimaHora = null;
-            try (Connection conn = DriverManager.getConnection(DB_URL);
-                    Statement stmt = conn.createStatement();
-                    ResultSet rs = stmt.executeQuery(horaSQL)) {
-                if (rs.next()) {
-                    ultimaHora = rs.getString("ultima_hora");
+            if (horas == 1) {
+                // Última hora exacta desde este momento (incluye minutos/segundos)
+                String query = String.format("""
+                            SELECT fecha_registro, precio FROM %s
+                            WHERE fecha_registro >= NOW() - INTERVAL 1 HOUR
+                            ORDER BY fecha_registro
+                        """, crypto);
+
+                try (PreparedStatement stmt = conn.prepareStatement(query);
+                        ResultSet rs = stmt.executeQuery()) {
+                    while (rs.next()) {
+                        LocalDateTime fecha = rs.getTimestamp("fecha_registro").toLocalDateTime();
+                        double precio = rs.getDouble("precio");
+                        datos.add(new Registro(fecha, precio));
+                    }
+                }
+
+            } else {
+                // Para cada hora, obtener el último registro de esa hora
+                String query = String.format("""
+                            SELECT
+                                DATE_FORMAT(fecha_registro, '%%Y-%%m-%%d %%H:00:00') AS hora,
+                                MAX(fecha_registro) AS ultima_fecha,
+                                SUBSTRING_INDEX(GROUP_CONCAT(precio ORDER BY fecha_registro DESC), ',', 1) AS precio
+                            FROM %s
+                            WHERE fecha_registro >= NOW() - INTERVAL ? HOUR
+                            GROUP BY hora
+                            ORDER BY hora ASC
+                        """, crypto);
+
+                try (PreparedStatement stmt = conn.prepareStatement(query)) {
+                    stmt.setInt(1, horas);
+                    ResultSet rs = stmt.executeQuery();
+                    while (rs.next()) {
+                        String fechaStr = rs.getString("ultima_fecha");
+                        double precio = rs.getDouble("precio");
+                        LocalDateTime fecha = LocalDateTime.parse(fechaStr.replace(" ", "T"));
+                        datos.add(new Registro(fecha, precio));
+                    }
                 }
             }
 
-            if (ultimaHora == null)
-                return datos;
-
-            // Obtener todos los registros de esa hora completa
-            String query = String.format("""
-                        SELECT fecha_registro, precio FROM %s
-                        WHERE fecha_registro BETWEEN ? AND DATE_ADD(?, INTERVAL 59 MINUTE)
-                        ORDER BY fecha_registro
-                    """, crypto);
-
-            try (Connection conn = DriverManager.getConnection(DB_URL);
-                    PreparedStatement stmt = conn.prepareStatement(query)) {
-                stmt.setString(1, ultimaHora);
-                stmt.setString(2, ultimaHora);
-                ResultSet rs = stmt.executeQuery();
-                while (rs.next()) {
-                    LocalDateTime fecha = rs.getTimestamp("fecha_registro").toLocalDateTime();
-                    double precio = rs.getDouble("precio");
-                    datos.add(new Registro(fecha, precio));
-                }
-            }
-        } else {
-            // Agrupación por hora
-            String query = String.format("""
-                        SELECT
-                            DATE_FORMAT(fecha_registro, '%%Y-%%m-%%d %%H:00:00') AS hora,
-                            MAX(fecha_registro) AS ultima_fecha,
-                            SUBSTRING_INDEX(GROUP_CONCAT(precio ORDER BY fecha_registro DESC), ',', 1) AS precio
-                        FROM %s
-                        WHERE fecha_registro >= NOW() - INTERVAL ? HOUR
-                        GROUP BY hora
-                        ORDER BY hora ASC
-                    """, crypto);
-
-            try (Connection conn = DriverManager.getConnection(DB_URL);
-                    PreparedStatement stmt = conn.prepareStatement(query)) {
-                stmt.setInt(1, horas);
-                ResultSet rs = stmt.executeQuery();
-                while (rs.next()) {
-                    String fechaStr = rs.getString("ultima_fecha");
-                    double precio = rs.getDouble("precio");
-                    LocalDateTime fecha = LocalDateTime.parse(fechaStr.replace(" ", "T"));
-                    datos.add(new Registro(fecha, precio));
-                }
-            }
         }
 
         return datos;
