@@ -168,8 +168,8 @@ public class GraficoCompara {
         chart.getStyler().setDatePattern("HH:mm");
         
         // Ocultar valores del eje Y
-        //chart.getStyler().setYAxisTicksVisible(false);
-        //chart.getStyler().setYAxisDecimalPattern("");
+        chart.getStyler().setYAxisTicksVisible(false);
+        chart.getStyler().setYAxisDecimalPattern("");
 
         // Colores para las diferentes criptomonedas
         Color[] colores = {
