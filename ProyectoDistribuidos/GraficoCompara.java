@@ -3,6 +3,7 @@ import org.knowm.xchart.*;
 import org.knowm.xchart.style.markers.None;
 import org.knowm.xchart.style.markers.SeriesMarkers;
 import org.knowm.xchart.style.lines.SeriesLines;
+import org.knowm.xchart.style.Styler;
 
 import java.awt.*;
 import java.io.*;
@@ -10,25 +11,31 @@ import java.net.InetSocketAddress;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.List;
+import java.util.Date;
 import java.util.concurrent.Executors;
 
-import org.knowm.xchart.style.Styler;
-
-// Como lo corro
-//javac -cp ".;lib/*" GraficoService.java
-//java -cp ".;lib/*" GraficoService
-
-// Ejemplo de peticion
-//http://localhost:8082/grafico?crypto=hyperliquid,chainlink&inicio=15:00&fin=17:00
+// Ejemplo de petición
+// http://localhost:8082/grafico?cryptos=bitcoin,ethereum&inicio=2025-06-27T15:00&fin=2025-06-27T16:00
 
 public class GraficoCompara {
 
-    // private static final String DB_URL =
-    // "jdbc:mysql://localhost:3306/criptomonedas_db?user=root&password=&useSSL=false&serverTimezone=UTC";
     private static final String DB_URL = "jdbc:mysql://localhost:3308/criptomonedas_db?user=root&password=&useSSL=false&serverTimezone=UTC";
     private static final int PORT = 8082;
+    private static final int MAX_HORAS_CONSULTA = 24;
+    
+    // Colores para las diferentes criptomonedas
+    private static final Map<String, Color> CRYPTO_COLORS = Map.of(
+        "bitcoin", new Color(247, 147, 26),
+        "ethereum", new Color(98, 126, 234),
+        "ripple", new Color(0, 162, 232),
+        "litecoin", new Color(191, 191, 191),
+        "cardano", new Color(0, 153, 153),
+        "solana", new Color(0, 204, 153),
+        "polkadot", new Color(230, 0, 122)
+    );
 
     public static void main(String[] args) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
@@ -39,163 +46,198 @@ public class GraficoCompara {
     }
 
     private static void handleGraficoRequest(HttpExchange exchange) throws IOException {
-        if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
-            exchange.sendResponseHeaders(405, -1);
-            return;
-        }
-
-        Map<String, String> params = parseQuery(exchange.getRequestURI().getQuery());
-        String[] cryptos = params.getOrDefault("crypto", "").toLowerCase().split(",");
-        int horas = Integer.parseInt(params.getOrDefault("horas", "3"));
-
-        if (cryptos.length == 0 || horas <= 0 || horas > 24) {
-            String error = "Parámetros inválidos. Usa ?crypto=bitcoin,ethereum&horas=3";
-            exchange.sendResponseHeaders(400, error.length());
-            try (OutputStream os = exchange.getResponseBody()) {
-                os.write(error.getBytes());
-            }
-            return;
-        }
-
         try {
-            List<List<Registro>> todosRegistros = new ArrayList<>();
-            for (String crypto : cryptos) {
-                List<Registro> registros = obtenerDatos(crypto.trim(), horas);
-                if (!registros.isEmpty()) {
-                    todosRegistros.add(registros);
-                }
-            }
-
-            if (todosRegistros.isEmpty()) {
-                exchange.sendResponseHeaders(204, -1); // No Content
+            if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(405, -1);
                 return;
             }
 
-            byte[] imageBytes = generarGraficoPNG(cryptos, todosRegistros);
-            exchange.getResponseHeaders().set("Content-Type", "image/png");
-            exchange.sendResponseHeaders(200, imageBytes.length);
-            try (OutputStream os = exchange.getResponseBody()) {
-                os.write(imageBytes);
+            Map<String, String> params = parseQuery(exchange.getRequestURI().getQuery());
+            String cryptosParam = params.getOrDefault("cryptos", "").toLowerCase();
+            
+            // Obtener el rango de tiempo permitido (últimas 24 horas)
+            LocalDateTime ahora = LocalDateTime.now();
+            LocalDateTime maxInicio = ahora.minusHours(MAX_HORAS_CONSULTA);
+            
+            // Parsear fechas o usar valores por defecto (últimas 3 horas)
+            LocalDateTime inicio;
+            LocalDateTime fin;
+            
+            try {
+                String inicioStr = params.getOrDefault("inicio", "");
+                String finStr = params.getOrDefault("fin", "");
+                
+                if (inicioStr.isEmpty() || finStr.isEmpty()) {
+                    // Valores por defecto: últimas 3 horas
+                    fin = ahora;
+                    inicio = fin.minusHours(3);
+                } else {
+                    inicio = LocalDateTime.parse(inicioStr.replace(" ", "T"));
+                    fin = LocalDateTime.parse(finStr.replace(" ", "T"));
+                    
+                    // Validar que las fechas estén dentro del rango permitido
+                    if (inicio.isBefore(maxInicio)) {
+                        String error = "La fecha de inicio no puede ser anterior a " + maxInicio;
+                        enviarError(exchange, 400, error);
+                        return;
+                    }
+                    
+                    if (fin.isAfter(ahora)) {
+                        String error = "La fecha de fin no puede ser posterior a la fecha actual";
+                        enviarError(exchange, 400, error);
+                        return;
+                    }
+                }
+                
+                if (inicio.isAfter(fin)) {
+                    String error = "La fecha de inicio debe ser anterior a la fecha de fin";
+                    enviarError(exchange, 400, error);
+                    return;
+                }
+                
+            } catch (Exception e) {
+                String error = "Formato de fecha inválido. Use YYYY-MM-DDTHH:MM";
+                enviarError(exchange, 400, error);
+                return;
             }
 
-        } catch (SQLException e) {
-            e.printStackTrace();
-            String error = "Error al consultar datos de la base";
-            exchange.sendResponseHeaders(500, error.length());
-            try (OutputStream os = exchange.getResponseBody()) {
-                os.write(error.getBytes());
+            if (cryptosParam.isEmpty()) {
+                String error = "Debe especificar al menos una criptomoneda. Ejemplo: ?cryptos=bitcoin";
+                enviarError(exchange, 400, error);
+                return;
             }
+
+            List<String> cryptos = Arrays.asList(cryptosParam.split(","));
+            
+            try {
+                Map<String, List<Registro>> datos = obtenerDatosMultiples(cryptos, inicio, fin);
+                
+                if (datos.isEmpty() || datos.values().stream().allMatch(List::isEmpty)) {
+                    exchange.sendResponseHeaders(204, -1); // No Content
+                    return;
+                }
+
+                byte[] imageBytes = generarGraficoPNG(datos);
+                
+                exchange.getResponseHeaders().set("Content-Type", "image/png");
+                exchange.sendResponseHeaders(200, imageBytes.length);
+                try (OutputStream os = exchange.getResponseBody()) {
+                    os.write(imageBytes);
+                }
+
+            } catch (SQLException e) {
+                e.printStackTrace();
+                String error = "Error al consultar datos de la base: " + e.getMessage();
+                enviarError(exchange, 500, error);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
-    private static List<Registro> obtenerDatos(String crypto, int horas) throws SQLException {
-        List<Registro> datos = new ArrayList<>();
-
-        try {
-            Class.forName("com.mysql.cj.jdbc.Driver");
-        } catch (ClassNotFoundException e) {
-            throw new SQLException("Driver JDBC no encontrado");
+    private static void enviarError(HttpExchange exchange, int code, String message) throws IOException {
+        exchange.getResponseHeaders().set("Content-Type", "text/plain");
+        exchange.sendResponseHeaders(code, message.length());
+        try (OutputStream os = exchange.getResponseBody()) {
+            os.write(message.getBytes());
         }
+    }
+
+
+    private static Map<String, List<Registro>> obtenerDatosMultiples(List<String> cryptos, LocalDateTime inicio, LocalDateTime fin) throws SQLException {
+        Map<String, List<Registro>> datos = new HashMap<>();
 
         try (Connection conn = DriverManager.getConnection(DB_URL)) {
+            //System.out.println("Obteniendo datos desde " + inicio + " hasta " + fin);
 
-            if (horas == 1) {
-                // Última hora exacta desde este momento (incluye minutos/segundos)
+            for (String crypto : cryptos) {
+                List<Registro> registros = new ArrayList<>();
+                
+                // Usar DateTimeFormatter para el formato correcto
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+                
                 String query = String.format("""
-                            SELECT fecha_registro, precio FROM %s
-                            WHERE fecha_registro >= NOW() - INTERVAL 1 HOUR
-                            ORDER BY fecha_registro
-                        """, crypto);
+                    SELECT fecha_registro, precio FROM %s 
+                    WHERE fecha_registro BETWEEN STR_TO_DATE(?, '%%Y-%%m-%%d %%H:%%i:%%s') 
+                    AND STR_TO_DATE(?, '%%Y-%%m-%%d %%H:%%i:%%s')
+                    ORDER BY fecha_registro
+                """, crypto);
 
-                try (PreparedStatement stmt = conn.prepareStatement(query);
-                        ResultSet rs = stmt.executeQuery()) {
+                //System.out.println("Ejecutando query: " + query);
+                
+                try (PreparedStatement stmt = conn.prepareStatement(query)) {
+                    // Formatear las fechas correctamente para MySQL
+                    stmt.setString(1, inicio.format(formatter));
+                    stmt.setString(2, fin.format(formatter));
+                    
+                    //System.out.println("Parámetros: " + inicio.format(formatter) + " - " + fin.format(formatter));
+                    
+                    ResultSet rs = stmt.executeQuery();
+                    int count = 0;
+                    
                     while (rs.next()) {
                         LocalDateTime fecha = rs.getTimestamp("fecha_registro").toLocalDateTime();
                         double precio = rs.getDouble("precio");
-                        datos.add(new Registro(fecha, precio));
+                        registros.add(new Registro(fecha, precio));
+                        count++;
                     }
+                    System.out.println("Registros encontrados para " + crypto + ": " + count);
                 }
-
-            } else {
-                // Para cada hora, obtener el último registro de esa hora
-                String query = String.format("""
-                            SELECT
-                                DATE_FORMAT(fecha_registro, '%%Y-%%m-%%d %%H:00:00') AS hora,
-                                MAX(fecha_registro) AS ultima_fecha,
-                                SUBSTRING_INDEX(GROUP_CONCAT(precio ORDER BY fecha_registro DESC), ',', 1) AS precio
-                            FROM %s
-                            WHERE fecha_registro >= NOW() - INTERVAL ? HOUR
-                            GROUP BY hora
-                            ORDER BY hora ASC
-                        """, crypto);
-
-                try (PreparedStatement stmt = conn.prepareStatement(query)) {
-                    stmt.setInt(1, horas);
-                    ResultSet rs = stmt.executeQuery();
-                    while (rs.next()) {
-                        String fechaStr = rs.getString("ultima_fecha");
-                        double precio = rs.getDouble("precio");
-                        LocalDateTime fecha = LocalDateTime.parse(fechaStr.replace(" ", "T"));
-                        datos.add(new Registro(fecha, precio));
-                    }
-                }
+                
+                datos.put(crypto, registros);
             }
-
         }
-
         return datos;
     }
 
-    private static byte[] generarGraficoPNG(String[] cryptos, List<List<Registro>> todosRegistros) throws IOException {
+    private static byte[] generarGraficoPNG(Map<String, List<Registro>> datos) throws IOException {
         XYChart chart = new XYChartBuilder()
                 .width(800).height(450)
-                .xAxisTitle("Hora")
-                .yAxisTitle("")
+                .title("Comparación de precios de criptomonedas")
                 .build();
 
-        // Configuración del estilo
+        // Configuración del estilo del gráfico
         chart.getStyler().setDefaultSeriesRenderStyle(XYSeries.XYSeriesRenderStyle.Line);
         chart.getStyler().setChartBackgroundColor(Color.WHITE);
         chart.getStyler().setPlotBackgroundColor(new Color(245, 245, 245));
         chart.getStyler().setPlotGridLinesColor(new Color(220, 220, 220));
         chart.getStyler().setChartTitleFont(new Font("SansSerif", Font.BOLD, 18));
         chart.getStyler().setAxisTitleFont(new Font("SansSerif", Font.PLAIN, 14));
-        chart.getStyler().setLegendVisible(true);
-        chart.getStyler().setLegendPosition(Styler.LegendPosition.InsideNE);
+        chart.getStyler().setLegendPosition(Styler.LegendPosition.OutsideE);
+        chart.getStyler().setLegendLayout(Styler.LegendLayout.Vertical);
+        chart.getStyler().setLegendSeriesLineLength(12);
         chart.getStyler().setMarkerSize(5);
         chart.getStyler().setDecimalPattern("#,###.00");
         chart.getStyler().setXAxisTickMarkSpacingHint(75);
-        chart.getStyler().setDatePattern("HH:mm");
-        
-        // Ocultar valores del eje Y
-        chart.getStyler().setYAxisTicksVisible(false);
-        chart.getStyler().setYAxisDecimalPattern("");
+        chart.getStyler().setDatePattern("yyyy-MM-dd HH:mm");
+        chart.getStyler().setLegendFont(new Font("SansSerif", Font.PLAIN, 12));
+        chart.getStyler().setAxisTickLabelsFont(new Font("SansSerif", Font.PLAIN, 10));
 
-        // Colores para las diferentes criptomonedas
-        Color[] colores = {
-            new Color(52, 152, 219),   // Azul
-            new Color(155, 89, 182),   // Morado
-            new Color(46, 204, 113),   // Verde
-            new Color(241, 196, 15),    // Amarillo
-            new Color(231, 76, 60),     // Rojo
-            new Color(26, 188, 156),   // Turquesa
-            new Color(52, 73, 94),     // Gris oscuro
-            new Color(230, 126, 34)    // Naranja
-        };
+        //chart.getStyler().setYAxisTicksVisible(false);
+        //chart.getStyler().setYAxisDecimalPattern("");
 
-        for (int i = 0; i < cryptos.length && i < todosRegistros.size(); i++) {
-            List<Registro> registros = todosRegistros.get(i);
-            List<java.util.Date> fechas = new ArrayList<>();
+        // Agregar cada serie de datos al gráfico
+        for (Map.Entry<String, List<Registro>> entry : datos.entrySet()) {
+            String crypto = entry.getKey();
+            List<Registro> registros = entry.getValue();
+            
+            if (registros.isEmpty()) continue;
+            
+            List<Date> fechas = new ArrayList<>();
             List<Double> precios = new ArrayList<>();
-
+            
             for (Registro r : registros) {
-                fechas.add(java.util.Date.from(r.fecha.atZone(ZoneId.systemDefault()).toInstant()));
+                fechas.add(Date.from(r.fecha.atZone(ZoneId.systemDefault()).toInstant()));
                 precios.add(r.precio);
             }
-
-            XYSeries series = chart.addSeries(cryptos[i].toUpperCase(), fechas, precios);
-            series.setLineColor(colores[i % colores.length]);
-            series.setMarker(new None());
+            
+            Color color = CRYPTO_COLORS.getOrDefault(crypto.toLowerCase(), new Color(52, 152, 219));
+            
+            XYSeries series = chart.addSeries(crypto.toUpperCase(), fechas, precios);
+            series.setLineColor(color);
+            series.setMarkerColor(color);
+            series.setLineStyle(SeriesLines.SOLID);
+            series.setMarker(SeriesMarkers.NONE);
         }
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
