@@ -14,19 +14,25 @@ import java.util.*;
 import java.util.List;
 import java.util.concurrent.Executors;
 
-// Ejemplo de peticion
-//http://localhost:8081/grafico?crypto=bitcoin&horas=3
+import org.knowm.xchart.style.Styler;
 
-public class GraficoService {
+// Como lo corro
+//javac -cp ".;lib/*" GraficoService.java
+//java -cp ".;lib/*" GraficoService
+
+// Ejemplo de peticion
+//http://localhost:8082/grafico?crypto=hyperliquid,chainlink&inicio=15:00&fin=17:00
+
+public class GraficoCompara {
 
     // private static final String DB_URL =
     // "jdbc:mysql://localhost:3306/criptomonedas_db?user=root&password=&useSSL=false&serverTimezone=UTC";
     private static final String DB_URL = "jdbc:mysql://localhost:3308/criptomonedas_db?user=root&password=&useSSL=false&serverTimezone=UTC";
-    private static final int PORT = 8081;
+    private static final int PORT = 8082;
 
     public static void main(String[] args) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
-        server.createContext("/grafico", GraficoService::handleGraficoRequest);
+        server.createContext("/grafico", GraficoCompara::handleGraficoRequest);
         server.setExecutor(Executors.newFixedThreadPool(4));
         server.start();
         System.out.println("GraficoService escuchando en http://localhost:" + PORT + "/grafico");
@@ -39,11 +45,11 @@ public class GraficoService {
         }
 
         Map<String, String> params = parseQuery(exchange.getRequestURI().getQuery());
-        String crypto = params.getOrDefault("crypto", "").toLowerCase();
+        String[] cryptos = params.getOrDefault("crypto", "").toLowerCase().split(",");
         int horas = Integer.parseInt(params.getOrDefault("horas", "3"));
 
-        if (crypto.isEmpty() || horas <= 0 || horas > 24) {
-            String error = "Parámetros inválidos. Usa ?crypto=bitcoin&horas=3";
+        if (cryptos.length == 0 || horas <= 0 || horas > 24) {
+            String error = "Parámetros inválidos. Usa ?crypto=bitcoin,ethereum&horas=3";
             exchange.sendResponseHeaders(400, error.length());
             try (OutputStream os = exchange.getResponseBody()) {
                 os.write(error.getBytes());
@@ -52,13 +58,20 @@ public class GraficoService {
         }
 
         try {
-            List<Registro> registros = obtenerDatos(crypto, horas);
-            if (registros.isEmpty()) {
+            List<List<Registro>> todosRegistros = new ArrayList<>();
+            for (String crypto : cryptos) {
+                List<Registro> registros = obtenerDatos(crypto.trim(), horas);
+                if (!registros.isEmpty()) {
+                    todosRegistros.add(registros);
+                }
+            }
+
+            if (todosRegistros.isEmpty()) {
                 exchange.sendResponseHeaders(204, -1); // No Content
                 return;
             }
 
-            byte[] imageBytes = generarGraficoPNG(crypto, registros);
+            byte[] imageBytes = generarGraficoPNG(cryptos, todosRegistros);
             exchange.getResponseHeaders().set("Content-Type", "image/png");
             exchange.sendResponseHeaders(200, imageBytes.length);
             try (OutputStream os = exchange.getResponseBody()) {
@@ -133,45 +146,57 @@ public class GraficoService {
         return datos;
     }
 
-    private static byte[] generarGraficoPNG(String crypto, List<Registro> registros) throws IOException {
-        List<java.util.Date> fechas = new ArrayList<>();
-        List<Double> precios = new ArrayList<>();
-
-        for (Registro r : registros) {
-            fechas.add(java.util.Date.from(r.fecha.atZone(ZoneId.systemDefault()).toInstant()));
-            precios.add(r.precio);
-        }
-
+    private static byte[] generarGraficoPNG(String[] cryptos, List<List<Registro>> todosRegistros) throws IOException {
         XYChart chart = new XYChartBuilder()
                 .width(800).height(450)
-                .title("Variación de precio - " + crypto.toUpperCase())
                 .xAxisTitle("Hora")
-                .yAxisTitle("USD")
+                .yAxisTitle("")
                 .build();
 
-        chart.getStyler().setDefaultSeriesRenderStyle(XYSeries.XYSeriesRenderStyle.Area);
+        // Configuración del estilo
+        chart.getStyler().setDefaultSeriesRenderStyle(XYSeries.XYSeriesRenderStyle.Line);
         chart.getStyler().setChartBackgroundColor(Color.WHITE);
         chart.getStyler().setPlotBackgroundColor(new Color(245, 245, 245));
         chart.getStyler().setPlotGridLinesColor(new Color(220, 220, 220));
         chart.getStyler().setChartTitleFont(new Font("SansSerif", Font.BOLD, 18));
         chart.getStyler().setAxisTitleFont(new Font("SansSerif", Font.PLAIN, 14));
-        chart.getStyler().setLegendVisible(false);
+        chart.getStyler().setLegendVisible(true);
+        chart.getStyler().setLegendPosition(Styler.LegendPosition.InsideNE);
         chart.getStyler().setMarkerSize(5);
         chart.getStyler().setDecimalPattern("#,###.00");
         chart.getStyler().setXAxisTickMarkSpacingHint(75);
         chart.getStyler().setDatePattern("HH:mm");
+        
+        // Ocultar valores del eje Y
+        //chart.getStyler().setYAxisTicksVisible(false);
+        //chart.getStyler().setYAxisDecimalPattern("");
 
-        XYSeries series = chart.addSeries("Precio", fechas, precios);
+        // Colores para las diferentes criptomonedas
+        Color[] colores = {
+            new Color(52, 152, 219),   // Azul
+            new Color(155, 89, 182),   // Morado
+            new Color(46, 204, 113),   // Verde
+            new Color(241, 196, 15),    // Amarillo
+            new Color(231, 76, 60),     // Rojo
+            new Color(26, 188, 156),   // Turquesa
+            new Color(52, 73, 94),     // Gris oscuro
+            new Color(230, 126, 34)    // Naranja
+        };
 
-        if (fechas.size() == 1) {
-            series.setMarker(SeriesMarkers.CIRCLE);
-            series.setLineStyle(SeriesLines.SOLID);
-        } else {
+        for (int i = 0; i < cryptos.length && i < todosRegistros.size(); i++) {
+            List<Registro> registros = todosRegistros.get(i);
+            List<java.util.Date> fechas = new ArrayList<>();
+            List<Double> precios = new ArrayList<>();
+
+            for (Registro r : registros) {
+                fechas.add(java.util.Date.from(r.fecha.atZone(ZoneId.systemDefault()).toInstant()));
+                precios.add(r.precio);
+            }
+
+            XYSeries series = chart.addSeries(cryptos[i].toUpperCase(), fechas, precios);
+            series.setLineColor(colores[i % colores.length]);
             series.setMarker(new None());
         }
-
-        series.setLineColor(new Color(52, 152, 219));
-        series.setFillColor(new Color(52, 152, 219, 80));
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         BitmapEncoder.saveBitmap(chart, out, BitmapEncoder.BitmapFormat.PNG);
