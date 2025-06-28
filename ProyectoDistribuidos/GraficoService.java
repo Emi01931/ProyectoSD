@@ -32,8 +32,8 @@ import javax.imageio.ImageIO;
 
 public class GraficoService {
 
-    // private static final String DB_URL = "jdbc:mysql://localhost:3306/criptomonedas_db?user=root&password=&useSSL=false&serverTimezone=UTC";
-    private static final String DB_URL = "jdbc:mysql://localhost:3308/criptomonedas_db?user=root&password=&useSSL=false&serverTimezone=UTC";
+    // private static final String DB_URL = "jdbc:mysql://localhost:3306/criptomonedas_db?user=root&password=&useSSL=false";
+    private static final String DB_URL = "jdbc:mysql://localhost:3308/criptomonedas_db?user=root&password=&useSSL=false";
     private static final int PORT = 8081;
 
     // Mapeo de criptomonedas con sus nombres y símbolos
@@ -506,7 +506,7 @@ public class GraficoService {
                     int count = 0;
 
                     while (rs.next()) {
-                        LocalDateTime fecha = rs.getTimestamp("fecha_registro").toLocalDateTime().minusHours(6);
+                        LocalDateTime fecha = rs.getTimestamp("fecha_registro").toLocalDateTime();
                         double precio = rs.getDouble("precio");
                         registros.add(new Registro(fecha, precio));
                         count++;
