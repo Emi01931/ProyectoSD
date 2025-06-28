@@ -5,8 +5,8 @@ import org.knowm.xchart.style.markers.SeriesMarkers;
 import org.knowm.xchart.style.lines.SeriesLines;
 import org.knowm.xchart.style.Styler;
 
-
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.sql.*;
@@ -17,28 +17,48 @@ import java.util.*;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.Executors;
+import javax.imageio.ImageIO;
 
 // Ejemplo de peticion del punto 1, una moneda graficada cierta cantidad de horas
-//http://localhost:8081/grafico?crypto=bitcoin&horas=1
+// http://localhost:8081/grafico?crypto=bitcoin&horas=1
+
+// Ejemplo del punto 3, comparar monedas
+//  http://localhost:8081/graficos-todas?hora=horas=1
 
 // Ejemplo de punto 4, comparacion de monedas con hora de inicio y fin
 // Solo cambien la fecha porque solo permite mostrar 24 horas hacia atras
 // http://localhost:8081/graficoCompara?cryptos=ethereum,ripple,solana,tron,dogecoin,cardano,hyperliquid,bitcoin_cash,chainlink&inicio=2025-06-27T15:00&fin=2025-06-27T16:00
 
+
 public class GraficoService {
 
-    // private static final String DB_URL =
-    // "jdbc:mysql://localhost:3306/criptomonedas_db?user=root&password=&useSSL=false&serverTimezone=UTC";
+    // private static final String DB_URL = "jdbc:mysql://localhost:3306/criptomonedas_db?user=root&password=&useSSL=false&serverTimezone=UTC";
     private static final String DB_URL = "jdbc:mysql://localhost:3308/criptomonedas_db?user=root&password=&useSSL=false&serverTimezone=UTC";
     private static final int PORT = 8081;
+
+    // Mapeo de criptomonedas con sus nombres y símbolos
+    private static final Map<String, String[]> CRIPTOS = Map.of(
+        "bitcoin", new String[]{"Bitcoin", "BTC"},
+        "ethereum", new String[]{"Ethereum", "ETH"},
+        "ripple", new String[]{"XRP", "XRP"},
+        "solana", new String[]{"Solana", "SOL"},
+        "tron", new String[]{"TRON", "TRX"},
+        "dogecoin", new String[]{"Dogecoin", "DOGE"},
+        "cardano", new String[]{"Cardano", "ADA"},
+        "hyperliquid", new String[]{"Hyperliquid", "HYPE"},
+        "bitcoin_cash", new String[]{"Bitcoin Cash", "BCH"},
+        "chainlink", new String[]{"Chainlink", "LINK"}
+    );
 
     public static void main(String[] args) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
         server.createContext("/grafico", GraficoService::handleGraficoRequest);
         server.createContext("/graficoCompara", GraficoService::handleGraficoComparaRequest);
+        server.createContext("/graficos-todas", GraficoService::handleGraficosTodas);
+        server.createContext("/regresion", GraficoService::handleRegresionLineal);
         server.setExecutor(Executors.newFixedThreadPool(4));
         server.start();
-        System.out.println("GraficoService escuchando en http://localhost:" + PORT);
+        System.out.println("GraficoService escuchando en http://localhost:" + PORT + "/grafico");
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -192,6 +212,133 @@ public class GraficoService {
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// Punto 3 - Todas las criptomonedas
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    private static void handleGraficosTodas(HttpExchange exchange) throws IOException {
+        if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(405, -1);
+            return;
+        }
+
+        Map<String, String> params = parseQuery(exchange.getRequestURI().getQuery());
+        int horas = Integer.parseInt(params.getOrDefault("horas", "24"));
+
+        if (horas <= 0 || horas > 24) {
+            String error = "Parámetros inválidos. Usa ?horas=24 (1-24)";
+            exchange.sendResponseHeaders(400, error.length());
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(error.getBytes());
+            }
+            return;
+        }
+
+        try {
+            byte[] imageBytes = generarGraficosTodasCriptos(horas);
+            exchange.getResponseHeaders().set("Content-Type", "image/png");
+            exchange.sendResponseHeaders(200, imageBytes.length);
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(imageBytes);
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            String error = "Error al consultar datos de la base";
+            exchange.sendResponseHeaders(500, error.length());
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(error.getBytes());
+            }
+        }
+    }
+
+    private static byte[] generarGraficosTodasCriptos(int horas) throws SQLException, IOException {
+        final int graficosAncho = 400;
+        final int graficosAlto = 300;
+        final int filas = 5;
+        final int columnas = 2;
+        final int margen = 20;
+        
+        int imagenAncho = columnas * graficosAncho + (columnas + 1) * margen;
+        int imagenAlto = filas * graficosAlto + (filas + 1) * margen;
+        
+        BufferedImage imagenCompuesta = new BufferedImage(imagenAncho, imagenAlto, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2d = imagenCompuesta.createGraphics();
+        g2d.setColor(Color.WHITE);
+        g2d.fillRect(0, 0, imagenAncho, imagenAlto);
+        
+        g2d.setColor(Color.BLACK);
+        g2d.setFont(new Font("SansSerif", Font.BOLD, 24));
+        FontMetrics fm = g2d.getFontMetrics();
+        String titulo = "Variación de Precios - Últimas " + horas + " horas";
+        int tituloX = (imagenAncho - fm.stringWidth(titulo)) / 2;
+        g2d.drawString(titulo, tituloX, 30);
+        
+        List<String> criptosOrdenadas = new ArrayList<>(CRIPTOS.keySet());
+        
+        for (int i = 0; i < criptosOrdenadas.size(); i++) {
+            String crypto = criptosOrdenadas.get(i);
+            List<Registro> registros = obtenerDatos(crypto, horas);
+            
+            if (!registros.isEmpty()) {
+                XYChart chart = crearGraficoIndividual(crypto, registros, graficosAncho, graficosAlto);
+                BufferedImage graficoImg = BitmapEncoder.getBufferedImage(chart);
+                
+                int fila = i / columnas;
+                int columna = i % columnas;
+                int x = margen + columna * (graficosAncho + margen);
+                int y = 60 + margen + fila * (graficosAlto + margen);
+                
+                g2d.drawImage(graficoImg, x, y, null);
+            }
+        }
+        
+        g2d.dispose();
+        
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ImageIO.write(imagenCompuesta, "PNG", out);
+        return out.toByteArray();
+    }
+
+    private static XYChart crearGraficoIndividual(String crypto, List<Registro> registros, int ancho, int alto) {
+        String[] info = CRIPTOS.get(crypto);
+        String nombre = info[0];
+        String simbolo = info[1];
+        
+        List<java.util.Date> fechas = new ArrayList<>();
+        List<Double> precios = new ArrayList<>();
+
+        for (Registro r : registros) {
+            fechas.add(java.util.Date.from(r.fecha.atZone(ZoneId.systemDefault()).toInstant()));
+            precios.add(r.precio);
+        }
+
+        XYChart chart = new XYChartBuilder()
+                .width(ancho).height(alto)
+                .title(nombre + " (" + simbolo + ")")
+                .xAxisTitle("Hora")
+                .yAxisTitle("USD")
+                .build();
+
+        chart.getStyler().setDefaultSeriesRenderStyle(XYSeries.XYSeriesRenderStyle.Line);
+        chart.getStyler().setChartBackgroundColor(Color.WHITE);
+        chart.getStyler().setPlotBackgroundColor(new Color(245, 245, 245));
+        chart.getStyler().setPlotGridLinesColor(new Color(220, 220, 220));
+        chart.getStyler().setChartTitleFont(new Font("SansSerif", Font.BOLD, 12));
+        chart.getStyler().setAxisTitleFont(new Font("SansSerif", Font.PLAIN, 10));
+        chart.getStyler().setLegendVisible(false);
+        chart.getStyler().setMarkerSize(3);
+        chart.getStyler().setDecimalPattern("#,###.00");
+        chart.getStyler().setDatePattern("HH:mm");
+
+        XYSeries series = chart.addSeries("Precio", fechas, precios);
+        series.setMarker(new None());
+        series.setLineColor(getColorForCrypto(crypto));
+        series.setLineWidth(2);
+
+        return chart;
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// Graficas de comparacion
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
@@ -303,7 +450,6 @@ public class GraficoService {
         }
     }
 
-
     private static Map<String, List<Registro>> obtenerDatosMultiples(List<String> cryptos, LocalDateTime inicio, LocalDateTime fin) throws SQLException {
         Map<String, List<Registro>> datos = new HashMap<>();
 
@@ -404,6 +550,182 @@ public class GraficoService {
         return out.toByteArray();
     }
 
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// Punto 5 - Regresión lineal
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    private static void handleRegresionLineal(HttpExchange exchange) throws IOException {
+        if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(405, -1);
+            return;
+        }
+
+        Map<String, String> params = parseQuery(exchange.getRequestURI().getQuery());
+        String crypto = params.getOrDefault("crypto", "").toLowerCase();
+        int horaInicio = Integer.parseInt(params.getOrDefault("inicio", "10"));
+        int horaFin = Integer.parseInt(params.getOrDefault("fin", "12"));
+
+        if (crypto.isEmpty() || !CRIPTOS.containsKey(crypto) || 
+            horaInicio < 0 || horaInicio > 23 || horaFin <= horaInicio || horaFin > 24) {
+            String error = "Parámetros inválidos. Usa ?crypto=bitcoin&inicio=10&fin=12";
+            exchange.sendResponseHeaders(400, error.length());
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(error.getBytes());
+            }
+            return;
+        }
+
+        try {
+            byte[] imageBytes = generarGraficoRegresion(crypto, horaInicio, horaFin);
+            exchange.getResponseHeaders().set("Content-Type", "image/png");
+            exchange.sendResponseHeaders(200, imageBytes.length);
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(imageBytes);
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            String error = "Error al consultar datos de la base";
+            exchange.sendResponseHeaders(500, error.length());
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(error.getBytes());
+            }
+        }
+    }
+
+    private static byte[] generarGraficoRegresion(String crypto, int horaInicio, int horaFin) 
+            throws SQLException, IOException {
+        
+        List<Registro> registros = obtenerDatosRango(crypto, horaInicio, horaFin);
+        
+        if (registros.isEmpty()) {
+            throw new SQLException("No hay datos suficientes para el rango especificado");
+        }
+
+        String[] info = CRIPTOS.get(crypto);
+        String nombre = info[0];
+        String simbolo = info[1];
+
+        List<Double> tiempos = new ArrayList<>();
+        List<Double> precios = new ArrayList<>();
+        
+        for (int i = 0; i < registros.size(); i++) {
+            tiempos.add((double) i);
+            precios.add(registros.get(i).precio);
+        }
+
+        RegresionLineal regresion = calcularRegresionLineal(tiempos, precios);
+        
+        List<Double> lineaX = new ArrayList<>();
+        List<Double> lineaY = new ArrayList<>();
+        
+        for (double i = 0; i < registros.size(); i++) {
+            lineaX.add(i);
+            lineaY.add(regresion.pendiente * i + regresion.interseccion);
+        }
+
+        XYChart chart = new XYChartBuilder()
+                .width(800).height(500)
+                .title("Regresión Lineal - " + nombre + " (" + simbolo + ")")
+                .xAxisTitle("Tiempo (intervalos)")
+                .yAxisTitle("Precio (USD)")
+                .build();
+
+        chart.getStyler().setChartBackgroundColor(Color.WHITE);
+        chart.getStyler().setPlotBackgroundColor(new Color(245, 245, 245));
+        chart.getStyler().setPlotGridLinesColor(new Color(220, 220, 220));
+        chart.getStyler().setChartTitleFont(new Font("SansSerif", Font.BOLD, 18));
+        chart.getStyler().setAxisTitleFont(new Font("SansSerif", Font.PLAIN, 14));
+        chart.getStyler().setDecimalPattern("#,###.00");
+        chart.getStyler().setMarkerSize(6);
+
+        XYSeries puntosOriginales = chart.addSeries("Datos reales", tiempos, precios);
+        puntosOriginales.setXYSeriesRenderStyle(XYSeries.XYSeriesRenderStyle.Scatter);
+        puntosOriginales.setMarker(SeriesMarkers.CIRCLE);
+        puntosOriginales.setMarkerColor(new Color(231, 76, 60));
+
+        XYSeries lineaRegresion = chart.addSeries("Línea de regresión", lineaX, lineaY);
+        lineaRegresion.setXYSeriesRenderStyle(XYSeries.XYSeriesRenderStyle.Line);
+        lineaRegresion.setLineColor(new Color(52, 152, 219));
+        lineaRegresion.setLineWidth(3);
+        lineaRegresion.setMarker(new None());
+
+        String ecuacion = String.format("y = %.2fx + %.2f", regresion.pendiente, regresion.interseccion);
+        String r2 = String.format("R² = %.4f", regresion.coeficienteDeterminacion);
+        
+        chart.setTitle(chart.getTitle() + "\n" + ecuacion + " | " + r2);
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        BitmapEncoder.saveBitmap(chart, out, BitmapEncoder.BitmapFormat.PNG);
+        return out.toByteArray();
+    }
+
+    private static List<Registro> obtenerDatosRango(String crypto, int horaInicio, int horaFin) 
+            throws SQLException {
+        List<Registro> datos = new ArrayList<>();
+
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+        } catch (ClassNotFoundException e) {
+            throw new SQLException("Driver JDBC no encontrado");
+        }
+
+        try (Connection conn = DriverManager.getConnection(DB_URL)) {
+            String query = String.format("""
+                SELECT fecha_registro, precio FROM %s
+                WHERE DATE(fecha_registro) = CURDATE()
+                AND HOUR(fecha_registro) >= ? AND HOUR(fecha_registro) < ?
+                ORDER BY fecha_registro ASC
+            """, crypto);
+
+            try (PreparedStatement stmt = conn.prepareStatement(query)) {
+                stmt.setInt(1, horaInicio);
+                stmt.setInt(2, horaFin);
+                ResultSet rs = stmt.executeQuery();
+                
+                while (rs.next()) {
+                    LocalDateTime fecha = rs.getTimestamp("fecha_registro").toLocalDateTime();
+                    double precio = rs.getDouble("precio");
+                    datos.add(new Registro(fecha, precio));
+                }
+            }
+        }
+
+        return datos;
+    }
+
+    private static RegresionLineal calcularRegresionLineal(List<Double> x, List<Double> y) {
+        int n = x.size();
+        double sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
+
+        for (int i = 0; i < n; i++) {
+            sumX += x.get(i);
+            sumY += y.get(i);
+            sumXY += x.get(i) * y.get(i);
+            sumX2 += x.get(i) * x.get(i);
+            sumY2 += y.get(i) * y.get(i);
+        }
+
+        double pendiente = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+        double interseccion = (sumY - pendiente * sumX) / n;
+        
+        double mediaY = sumY / n;
+        double ssTot = 0, ssRes = 0;
+        
+        for (int i = 0; i < n; i++) {
+            double yPred = pendiente * x.get(i) + interseccion;
+            ssTot += Math.pow(y.get(i) - mediaY, 2);
+            ssRes += Math.pow(y.get(i) - yPred, 2);
+        }
+        
+        double r2 = 1 - (ssRes / ssTot);
+
+        return new RegresionLineal(pendiente, interseccion, r2);
+    }
+
+    private static Color getColorForCrypto(String crypto) {
+        return CRYPTO_COLORS.getOrDefault(crypto, new Color(52, 152, 219));
+    }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// Metodos genericos
@@ -429,6 +751,18 @@ public class GraficoService {
         Registro(LocalDateTime fecha, double precio) {
             this.fecha = fecha;
             this.precio = precio;
+        }
+    }
+
+    private static class RegresionLineal {
+        double pendiente;
+        double interseccion;
+        double coeficienteDeterminacion;
+
+        RegresionLineal(double pendiente, double interseccion, double r2) {
+            this.pendiente = pendiente;
+            this.interseccion = interseccion;
+            this.coeficienteDeterminacion = r2;
         }
     }
 }

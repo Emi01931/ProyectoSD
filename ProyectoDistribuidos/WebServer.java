@@ -2,6 +2,7 @@ import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpContext;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import com.sun.net.httpserver.*;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -54,9 +55,13 @@ public class WebServer {
 
         HttpContext statusContext = server.createContext(STATUS_ENDPOINT);
         HttpContext preciosContext = server.createContext(PRECIOS_ENDPOINT);
+        HttpContext graficaContext = server.createContext(GRAFICA_ENDPOINT);
+        HttpContext graficaComparaContext = server.createContext(COMPARAR_ENDPOINT);
 
         statusContext.setHandler(this::handleStatusCheckRequest);
         preciosContext.setHandler(this::handlePreciosRequest);
+        graficaContext.setHandler(this::handleGraficaRequest);
+        graficaComparaContext.setHandler(this::handleGraficaComparaRequest);
 
         server.setExecutor(Executors.newFixedThreadPool(8));
         server.start();
@@ -71,6 +76,10 @@ public class WebServer {
         String responseMessage = "El servidor está vivo\n";
         sendResponse(responseMessage.getBytes(), exchange, "text/plain");
     }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////
+    /// Obtener precios de la base de datos
+    ///////////////////////////////////////////////////////////////////////////////////////////
 
     private void handlePreciosRequest(HttpExchange exchange) throws IOException {
         if (!exchange.getRequestMethod().equalsIgnoreCase("get")) {
@@ -162,6 +171,46 @@ public class WebServer {
 
         return precios;
     }
+
+    //////////////////////////////////////////////////////////////////////////////////////////
+    /// Grafica punto 1, solo una moneda con 1 un parametro de hora
+    //////////////////////////////////////////////////////////////////////////////////////////
+    
+    private void handleGraficaRequest(HttpExchange exchange) throws IOException {
+        if (!exchange.getRequestMethod().equalsIgnoreCase("get")) {
+            exchange.close();
+            return;
+        }
+
+        Headers headers = exchange.getRequestHeaders();
+        
+        URI bodyString  = exchange.getRequestURI();
+
+        System.out.println(bodyString);
+
+        String responseMessage = "Se enviaria: "+ GRAFICAS_URL  + GRAFICA_ENDPOINT + bodyString;
+        sendResponse(responseMessage.getBytes(), exchange, "text/plain");
+    }
+
+
+    //////////////////////////////////////////////////////////////////////////////////////////
+    /// Grafica punto 4, Comparacion de monedas
+    //////////////////////////////////////////////////////////////////////////////////////////
+
+    private void handleGraficaComparaRequest(HttpExchange exchange) throws IOException {
+        if (!exchange.getRequestMethod().equalsIgnoreCase("get")) {
+            exchange.close();
+            return;
+        }
+
+        String responseMessage = "Se enviaria: "+ GRAFICAS_URL + "" + COMPARAR_ENDPOINT;
+        sendResponse(responseMessage.getBytes(), exchange, "text/plain");
+    }
+
+
+    //////////////////////////////////////////////////////////////////////////////////////////
+    /// Metodos genericos
+    //////////////////////////////////////////////////////////////////////////////////////////
 
     private void sendResponse(byte[] responseBytes, HttpExchange exchange, String contentType) throws IOException {
         Headers headers = exchange.getResponseHeaders();
