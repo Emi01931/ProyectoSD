@@ -17,8 +17,8 @@ import java.util.List;
 import java.util.Date;
 import java.util.concurrent.Executors;
 
-// Ejemplo de petición
-// http://localhost:8082/grafico?cryptos=bitcoin,ethereum&inicio=2025-06-27T15:00&fin=2025-06-27T16:00
+// Ejemplo de petición, solo cambien la fecha porque solo permite mostrar 24 horas hacia atras
+// http://localhost:8082/grafico?cryptos=ethereum,ripple,solana,tron,dogecoin,cardano,hyperliquid,bitcoin_cash,chainlink&inicio=2025-06-27T15:00&fin=2025-06-27T16:00
 
 public class GraficoCompara {
 
@@ -28,13 +28,16 @@ public class GraficoCompara {
     
     // Colores para las diferentes criptomonedas
     private static final Map<String, Color> CRYPTO_COLORS = Map.of(
-        "bitcoin", new Color(247, 147, 26),
-        "ethereum", new Color(98, 126, 234),
-        "ripple", new Color(0, 162, 232),
-        "litecoin", new Color(191, 191, 191),
-        "cardano", new Color(0, 153, 153),
-        "solana", new Color(0, 204, 153),
-        "polkadot", new Color(230, 0, 122)
+        "bitcoin", new Color(247, 147, 26),     // Naranja vibrante
+        "ethereum", new Color(98, 126, 0),      // Verde caca
+        "ripple", new Color(0, 162, 232),       // Azul cielo 
+        "solana", new Color(191, 191, 191),     // Gris plateado
+        "tron", new Color(0, 255, 0),           // Verde 
+        "dogecoin", new Color(0, 0, 0),     // Negro
+        "cardano", new Color(255, 204, 0),      // Amarrillo
+        "hyperliquid", new Color(0, 0, 255),    // Azul
+        "bitcoin_cash", new Color(103, 58, 183),// Púrpura intenso
+        "chainlink", new Color(255, 0, 0)      // Rojo vivo
     );
 
     public static void main(String[] args) throws IOException {
@@ -181,7 +184,7 @@ public class GraficoCompara {
                         registros.add(new Registro(fecha, precio));
                         count++;
                     }
-                    System.out.println("Registros encontrados para " + crypto + ": " + count);
+                    //System.out.println("Registros encontrados para " + crypto + ": " + count);
                 }
                 
                 datos.put(crypto, registros);
@@ -213,8 +216,8 @@ public class GraficoCompara {
         chart.getStyler().setLegendFont(new Font("SansSerif", Font.PLAIN, 12));
         chart.getStyler().setAxisTickLabelsFont(new Font("SansSerif", Font.PLAIN, 10));
 
-        //chart.getStyler().setYAxisTicksVisible(false);
-        //chart.getStyler().setYAxisDecimalPattern("");
+        chart.getStyler().setYAxisTicksVisible(false);
+        chart.getStyler().setYAxisDecimalPattern("");
 
         // Agregar cada serie de datos al gráfico
         for (Map.Entry<String, List<Registro>> entry : datos.entrySet()) {
