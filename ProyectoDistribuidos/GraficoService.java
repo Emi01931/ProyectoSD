@@ -38,7 +38,7 @@ public class GraficoService {
         server.createContext("/graficoCompara", GraficoService::handleGraficoComparaRequest);
         server.setExecutor(Executors.newFixedThreadPool(4));
         server.start();
-        System.out.println("GraficoService escuchando en http://localhost:" + PORT + "/grafico");
+        System.out.println("GraficoService escuchando en http://localhost:" + PORT);
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
