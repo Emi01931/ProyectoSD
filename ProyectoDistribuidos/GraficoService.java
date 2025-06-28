@@ -66,6 +66,14 @@ public class GraficoService {
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     private static void handleGraficoRequest(HttpExchange exchange) throws IOException {
+
+        setCORSHeaders(exchange); // <-- Agrega esta línea
+    
+        if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+            handleOptionsRequest(exchange);
+            return;
+        }
+
         if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
             exchange.sendResponseHeaders(405, -1);
             return;
@@ -216,6 +224,14 @@ public class GraficoService {
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     private static void handleGraficosTodas(HttpExchange exchange) throws IOException {
+
+        setCORSHeaders(exchange); // <-- Agrega esta línea
+    
+        if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+            handleOptionsRequest(exchange);
+            return;
+        }
+
         if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
             exchange.sendResponseHeaders(405, -1);
             return;
@@ -360,6 +376,14 @@ public class GraficoService {
 
     private static void handleGraficoComparaRequest(HttpExchange exchange) throws IOException {
         try {
+
+            setCORSHeaders(exchange); // <-- Agrega esta línea
+    
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                handleOptionsRequest(exchange);
+                return;
+            }
+
             if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
                 exchange.sendResponseHeaders(405, -1);
                 return;
@@ -555,6 +579,15 @@ public class GraficoService {
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     private static void handleRegresionLineal(HttpExchange exchange) throws IOException {
+
+        setCORSHeaders(exchange); // <-- Agrega esta línea
+    
+        if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+            handleOptionsRequest(exchange);
+            return;
+        }
+
+
         if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
             exchange.sendResponseHeaders(405, -1);
             return;
@@ -764,5 +797,16 @@ public class GraficoService {
             this.interseccion = interseccion;
             this.coeficienteDeterminacion = r2;
         }
+    }
+
+    private static void setCORSHeaders(HttpExchange exchange) {
+        exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
+        exchange.getResponseHeaders().set("Access-Control-Allow-Methods", "GET, OPTIONS");
+        exchange.getResponseHeaders().set("Access-Control-Allow-Headers", "Content-Type");
+    }
+
+    private static void handleOptionsRequest(HttpExchange exchange) throws IOException {
+        setCORSHeaders(exchange);
+        exchange.sendResponseHeaders(204, -1); // No Content
     }
 }

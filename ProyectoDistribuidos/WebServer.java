@@ -181,15 +181,9 @@ public class WebServer {
             exchange.close();
             return;
         }
-
-        Headers headers = exchange.getRequestHeaders();
         
-        URI bodyString  = exchange.getRequestURI();
-
-        System.out.println(bodyString);
-
-        String responseMessage = "Se enviaria: "+ GRAFICAS_URL  + GRAFICA_ENDPOINT + bodyString;
-        sendResponse(responseMessage.getBytes(), exchange, "text/plain");
+        
+        sendResponse("responseMessage".getBytes(), exchange, "text/plain");
     }
 
 
