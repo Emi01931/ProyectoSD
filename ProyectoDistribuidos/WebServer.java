@@ -13,8 +13,8 @@ import java.util.List;
 import java.util.Map;
 
 //  Para correr el proyecto de manera local
-// javac -cp ".;lib/mysql-connector-j-8.0.28.jar" WebServer.java
-// java -cp ".;lib/mysql-connector-j-8.0.28.jar" WebServer
+// javac -cp ".;lib/*" WebServer.java
+// java -cp ".;lib/*" WebServer
 
 public class WebServer {
     private static final String STATUS_ENDPOINT = "/status";

@@ -171,14 +171,13 @@ public class GraficoCompara {
                     
                     ResultSet rs = stmt.executeQuery();
                     int count = 0;
-                    
+
                     while (rs.next()) {
-                        LocalDateTime fecha = rs.getTimestamp("fecha_registro").toLocalDateTime();
+                        LocalDateTime fecha = rs.getTimestamp("fecha_registro").toLocalDateTime().minusHours(6);
                         double precio = rs.getDouble("precio");
                         registros.add(new Registro(fecha, precio));
                         count++;
                     }
-                    //System.out.println("Registros encontrados para " + crypto + ": " + count);
                 }
                 
                 datos.put(crypto, registros);
