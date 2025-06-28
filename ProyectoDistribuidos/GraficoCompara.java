@@ -33,7 +33,7 @@ public class GraficoCompara {
         "ripple", new Color(0, 162, 232),       // Azul cielo 
         "solana", new Color(191, 191, 191),     // Gris plateado
         "tron", new Color(0, 255, 0),           // Verde 
-        "dogecoin", new Color(0, 0, 0),     // Negro
+        "dogecoin", new Color(0, 0, 0),         // Negro
         "cardano", new Color(255, 204, 0),      // Amarrillo
         "hyperliquid", new Color(0, 0, 255),    // Azul
         "bitcoin_cash", new Color(103, 58, 183),// Púrpura intenso
@@ -81,12 +81,6 @@ public class GraficoCompara {
                     // Validar que las fechas estén dentro del rango permitido
                     if (inicio.isBefore(maxInicio)) {
                         String error = "La fecha de inicio no puede ser anterior a " + maxInicio;
-                        enviarError(exchange, 400, error);
-                        return;
-                    }
-                    
-                    if (fin.isAfter(ahora)) {
-                        String error = "La fecha de fin no puede ser posterior a la fecha actual";
                         enviarError(exchange, 400, error);
                         return;
                     }
@@ -212,7 +206,7 @@ public class GraficoCompara {
         chart.getStyler().setMarkerSize(5);
         chart.getStyler().setDecimalPattern("#,###.00");
         chart.getStyler().setXAxisTickMarkSpacingHint(75);
-        chart.getStyler().setDatePattern("yyyy-MM-dd HH:mm");
+        chart.getStyler().setDatePattern("HH:mm");
         chart.getStyler().setLegendFont(new Font("SansSerif", Font.PLAIN, 12));
         chart.getStyler().setAxisTickLabelsFont(new Font("SansSerif", Font.PLAIN, 10));
 
