@@ -275,7 +275,7 @@ public class GraficoService {
         final int margen = 20;
         
         int imagenAncho = columnas * graficosAncho + (columnas + 1) * margen;
-        int imagenAlto = filas * graficosAlto + (filas + 1) * margen;
+        int imagenAlto = filas * graficosAlto + (filas + 1) * margen + 50;
         
         BufferedImage imagenCompuesta = new BufferedImage(imagenAncho, imagenAlto, BufferedImage.TYPE_INT_RGB);
         Graphics2D g2d = imagenCompuesta.createGraphics();
@@ -521,7 +521,7 @@ public class GraficoService {
 
     private static byte[] generarGraficoComparaPNG(Map<String, List<Registro>> datos) throws IOException {
         XYChart chart = new XYChartBuilder()
-                .width(800).height(450)
+                .width(800).height(480)
                 .title("Comparación de precios de criptomonedas")
                 .build();
 
