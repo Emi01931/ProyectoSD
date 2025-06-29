@@ -22,7 +22,6 @@ public class WebServer {
     private static final String PRECIOS_ENDPOINT = "/precios";
     private static final String GRAFICA_ENDPOINT = "/grafica";
     private static final String COMPARAR_ENDPOINT = "/graficoCompara";
-    //private static final String DB_URL = "jdbc:mysql://localhost:3306/criptomonedas_db?user=root&password=&useSSL=false&serverTimezone=UTC";
     private static final String DB_URL = "jdbc:mysql://localhost:3308/criptomonedas_db?user=root&password=&useSSL=false&serverTimezone=UTC";
     private static final String GRAFICAS_URL = "http://localhost:8081";
 
