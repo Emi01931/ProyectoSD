@@ -32,7 +32,8 @@ import javax.imageio.ImageIO;
 
 public class GraficoService {
 
-    private static final String DB_URL = "jdbc:mysql://localhost:3308/criptomonedas_db?user=root&password=&useSSL=false";
+    //private static final String DB_URL = "jdbc:mysql://localhost:3308/criptomonedas_db?user=root&password=&useSSL=false";
+    private static final String DB_URL = "jdbc:mysql://10.23.176.2:3306/criptomonedas_db?user=root&password=root&useSSL=true";
     private static final int PORT = 8081;
 
     // Mapeo de criptomonedas con sus nombres y símbolos

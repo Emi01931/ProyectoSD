@@ -19,10 +19,9 @@ import java.util.Map;
 public class WebServer {
     private static final String STATUS_ENDPOINT = "/status";
     private static final String PRECIOS_ENDPOINT = "/precios";
-    private static final String GRAFICA_ENDPOINT = "/grafica";
-    private static final String COMPARAR_ENDPOINT = "/graficoCompara";
-    private static final String DB_URL = "jdbc:mysql://localhost:3308/criptomonedas_db?user=root&password=&useSSL=false&serverTimezone=UTC";
-    private static final String GRAFICAS_URL = "http://localhost:8081";
+    //private static final String DB_URL = "jdbc:mysql://localhost:3308/criptomonedas_db?user=root&password=&useSSL=false&serverTimezone=UTC";
+    private static final String DB_URL = "jdbc:mysql://10.23.176.2:3306/criptomonedas_db?user=root&password=root&useSSL=true";
+
 
     private final int port;
     private HttpServer server;
@@ -53,13 +52,9 @@ public class WebServer {
 
         HttpContext statusContext = server.createContext(STATUS_ENDPOINT);
         HttpContext preciosContext = server.createContext(PRECIOS_ENDPOINT);
-        HttpContext graficaContext = server.createContext(GRAFICA_ENDPOINT);
-        HttpContext graficaComparaContext = server.createContext(COMPARAR_ENDPOINT);
 
         statusContext.setHandler(this::handleStatusCheckRequest);
         preciosContext.setHandler(this::handlePreciosRequest);
-        graficaContext.setHandler(this::handleGraficaRequest);
-        graficaComparaContext.setHandler(this::handleGraficaComparaRequest);
 
         server.setExecutor(Executors.newFixedThreadPool(8));
         server.start();
@@ -168,35 +163,6 @@ public class WebServer {
         }
 
         return precios;
-    }
-
-    //////////////////////////////////////////////////////////////////////////////////////////
-    /// Grafica punto 1, solo una moneda con 1 un parametro de hora
-    //////////////////////////////////////////////////////////////////////////////////////////
-    
-    private void handleGraficaRequest(HttpExchange exchange) throws IOException {
-        if (!exchange.getRequestMethod().equalsIgnoreCase("get")) {
-            exchange.close();
-            return;
-        }
-        
-        
-        sendResponse("responseMessage".getBytes(), exchange, "text/plain");
-    }
-
-
-    //////////////////////////////////////////////////////////////////////////////////////////
-    /// Grafica punto 4, Comparacion de monedas
-    //////////////////////////////////////////////////////////////////////////////////////////
-
-    private void handleGraficaComparaRequest(HttpExchange exchange) throws IOException {
-        if (!exchange.getRequestMethod().equalsIgnoreCase("get")) {
-            exchange.close();
-            return;
-        }
-
-        String responseMessage = "Se enviaria: "+ GRAFICAS_URL + "" + COMPARAR_ENDPOINT;
-        sendResponse(responseMessage.getBytes(), exchange, "text/plain");
     }
 
 
