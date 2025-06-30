@@ -16,6 +16,8 @@ import java.util.Map;
 // javac -cp ".;lib/*" WebServer.java
 // java -cp ".;lib/*" WebServer
 
+//gsutil cp gs://fontend-bucket/index.html  /home/master117mm
+
 public class WebServer {
     private static final String STATUS_ENDPOINT = "/status";
     private static final String PRECIOS_ENDPOINT = "/precios";

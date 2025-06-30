@@ -393,6 +393,9 @@
                     <h1>CryptoTracker Web</h1>
                     <p style="font-size: 0.8rem; opacity: 0.8;">Proyecto Final - Sistemas Distribuidos</p>
                 </div>
+                <div>
+                    <img src="https://media.tenor.com/PeM6kD37qx8AAAAj/rumia-dance.gif" width="60" height="60" alt="Descripción de la imagen">
+                </div>
             </div>
             <div class="header-info">
                 <div class="status-indicator">
@@ -574,7 +577,13 @@
                 </div>`;
 
             try {
-                const response = await fetch(endpointUrl, { mode: 'cors' });
+                const response = await fetch(endpointUrl, { 
+                    mode: 'cors',
+                    headers: {
+                        'Accept': 'image/png,image/jpeg',
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'same-origin'});
                 if (!response.ok) {
                     throw new Error(`Error del servidor: ${response.status} ${response.statusText}`);
                 }
@@ -605,7 +614,13 @@
         async function fetchCryptoPrices() {
             const cryptoContainer = document.getElementById('crypto-container');
             try {
-                const response = await fetch(`${API_BASE_URL}/precios`);
+                const response = await fetch(`${API_BASE_URL}/precios`,{ 
+                        mode: 'cors',
+                        headers: {
+                            'Accept': 'image/png,image/jpeg',
+                            'Content-Type': 'application/json'
+                        },
+                        credentials: 'same-origin'});
                 if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
                 cryptoData = await response.json();
                 
