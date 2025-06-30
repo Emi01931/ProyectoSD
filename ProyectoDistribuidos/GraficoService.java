@@ -140,7 +140,7 @@ public class GraficoService {
                 try (PreparedStatement stmt = conn.prepareStatement(query);
                         ResultSet rs = stmt.executeQuery()) {
                     while (rs.next()) {
-                        LocalDateTime fecha = rs.getTimestamp("fecha_registro").toLocalDateTime();
+                        LocalDateTime fecha = rs.getTimestamp("fecha_registro").toLocalDateTime().minusHours(6);
                         double precio = rs.getDouble("precio");
                         datos.add(new Registro(fecha, precio));
                     }
@@ -719,7 +719,7 @@ public class GraficoService {
                 ResultSet rs = stmt.executeQuery();
                 
                 while (rs.next()) {
-                    LocalDateTime fecha = rs.getTimestamp("fecha_registro").toLocalDateTime();
+                    LocalDateTime fecha = rs.getTimestamp("fecha_registro").toLocalDateTime().minusHours(6);
                     double precio = rs.getDouble("precio");
                     datos.add(new Registro(fecha, precio));
                 }
