@@ -22,6 +22,8 @@ import javax.imageio.ImageIO;
 // Ejemplo de peticion del punto 1, una moneda graficada cierta cantidad de horas
 // http://localhost:8081/grafico?crypto=bitcoin&horas=1
 
+http://34.36.237.99/grafico?crypto=bitcoin&horas=1
+
 // Ejemplo del punto 3, comparar monedas
 //  http://localhost:8081/graficos-todas?hora=horas=1
 
@@ -506,7 +508,7 @@ public class GraficoService {
                     int count = 0;
 
                     while (rs.next()) {
-                        LocalDateTime fecha = rs.getTimestamp("fecha_registro").toLocalDateTime();
+                        LocalDateTime fecha = rs.getTimestamp("fecha_registro").toLocalDateTime().minusHours(6);
                         double precio = rs.getDouble("precio");
                         registros.add(new Registro(fecha, precio));
                         count++;
