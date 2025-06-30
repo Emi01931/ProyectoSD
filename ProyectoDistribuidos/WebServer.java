@@ -21,9 +21,9 @@ import java.util.Map;
 public class WebServer {
     private static final String STATUS_ENDPOINT = "/status";
     private static final String PRECIOS_ENDPOINT = "/precios";
-    //private static final String DB_URL = "jdbc:mysql://localhost:3308/criptomonedas_db?user=root&password=&useSSL=false&serverTimezone=UTC";
+    // private static final String DB_URL =
+    // "jdbc:mysql://localhost:3308/criptomonedas_db?user=root&password=&useSSL=false&serverTimezone=UTC";
     private static final String DB_URL = "jdbc:mysql://10.23.176.2:3306/criptomonedas_db?user=root&password=root&useSSL=true";
-
 
     private final int port;
     private HttpServer server;
@@ -77,6 +77,17 @@ public class WebServer {
     ///////////////////////////////////////////////////////////////////////////////////////////
 
     private void handlePreciosRequest(HttpExchange exchange) throws IOException {
+        // Soporte para preflight CORS
+        if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+            Headers headers = exchange.getResponseHeaders();
+            headers.add("Access-Control-Allow-Origin", "*");
+            headers.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+            headers.add("Access-Control-Allow-Headers", "*");
+            exchange.sendResponseHeaders(204, -1); // No Content
+            exchange.close();
+            return;
+        }
+
         if (!exchange.getRequestMethod().equalsIgnoreCase("get")) {
             exchange.close();
             return;
@@ -167,15 +178,16 @@ public class WebServer {
         return precios;
     }
 
-
     //////////////////////////////////////////////////////////////////////////////////////////
-    /// Metodos genericos
+    /// Métodos genéricos
     //////////////////////////////////////////////////////////////////////////////////////////
 
     private void sendResponse(byte[] responseBytes, HttpExchange exchange, String contentType) throws IOException {
         Headers headers = exchange.getResponseHeaders();
         headers.add("Content-Type", contentType);
         headers.add("Access-Control-Allow-Origin", "*");
+        headers.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        headers.add("Access-Control-Allow-Headers", "*");
 
         exchange.sendResponseHeaders(200, responseBytes.length);
         try (OutputStream outputStream = exchange.getResponseBody()) {

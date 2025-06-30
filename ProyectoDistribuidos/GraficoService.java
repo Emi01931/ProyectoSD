@@ -31,26 +31,25 @@ http://34.36.237.99/grafico?crypto=bitcoin&horas=1
 // Solo cambien la fecha porque solo permite mostrar 24 horas hacia atras
 // http://localhost:8081/graficoCompara?cryptos=ethereum,ripple,solana,tron,dogecoin,cardano,hyperliquid,bitcoin_cash,chainlink&inicio=2025-06-27T15:00&fin=2025-06-27T16:00
 
-
 public class GraficoService {
 
-    //private static final String DB_URL = "jdbc:mysql://localhost:3308/criptomonedas_db?user=root&password=&useSSL=false";
+    // private static final String DB_URL =
+    // "jdbc:mysql://localhost:3308/criptomonedas_db?user=root&password=&useSSL=false";
     private static final String DB_URL = "jdbc:mysql://10.23.176.2:3306/criptomonedas_db?user=root&password=root&useSSL=true";
     private static final int PORT = 8081;
 
     // Mapeo de criptomonedas con sus nombres y símbolos
     private static final Map<String, String[]> CRIPTOS = Map.of(
-        "bitcoin", new String[]{"Bitcoin", "BTC"},
-        "ethereum", new String[]{"Ethereum", "ETH"},
-        "ripple", new String[]{"XRP", "XRP"},
-        "solana", new String[]{"Solana", "SOL"},
-        "tron", new String[]{"TRON", "TRX"},
-        "dogecoin", new String[]{"Dogecoin", "DOGE"},
-        "cardano", new String[]{"Cardano", "ADA"},
-        "hyperliquid", new String[]{"Hyperliquid", "HYPE"},
-        "bitcoin_cash", new String[]{"Bitcoin Cash", "BCH"},
-        "chainlink", new String[]{"Chainlink", "LINK"}
-    );
+            "bitcoin", new String[] { "Bitcoin", "BTC" },
+            "ethereum", new String[] { "Ethereum", "ETH" },
+            "ripple", new String[] { "XRP", "XRP" },
+            "solana", new String[] { "Solana", "SOL" },
+            "tron", new String[] { "TRON", "TRX" },
+            "dogecoin", new String[] { "Dogecoin", "DOGE" },
+            "cardano", new String[] { "Cardano", "ADA" },
+            "hyperliquid", new String[] { "Hyperliquid", "HYPE" },
+            "bitcoin_cash", new String[] { "Bitcoin Cash", "BCH" },
+            "chainlink", new String[] { "Chainlink", "LINK" });
 
     public static void main(String[] args) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
@@ -58,6 +57,15 @@ public class GraficoService {
         server.createContext("/graficoCompara", GraficoService::handleGraficoComparaRequest);
         server.createContext("/graficos-todas", GraficoService::handleGraficosTodas);
         server.createContext("/regresion", GraficoService::handleRegresionLineal);
+
+        server.createContext("/status", exchange -> {
+            String response = "OK";
+            exchange.sendResponseHeaders(200, response.length());
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(response.getBytes());
+            }
+        });
+
         server.setExecutor(Executors.newFixedThreadPool(4));
         server.start();
         System.out.println("GraficoService escuchando en http://localhost:" + PORT + "/grafico");
@@ -70,7 +78,7 @@ public class GraficoService {
     private static void handleGraficoRequest(HttpExchange exchange) throws IOException {
 
         setCORSHeaders(exchange); // <-- Agrega esta línea
-    
+
         if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
             handleOptionsRequest(exchange);
             return;
@@ -228,7 +236,7 @@ public class GraficoService {
     private static void handleGraficosTodas(HttpExchange exchange) throws IOException {
 
         setCORSHeaders(exchange); // <-- Agrega esta línea
-    
+
         if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
             handleOptionsRequest(exchange);
             return;
@@ -275,43 +283,43 @@ public class GraficoService {
         final int filas = 5;
         final int columnas = 2;
         final int margen = 20;
-        
+
         int imagenAncho = columnas * graficosAncho + (columnas + 1) * margen;
         int imagenAlto = filas * graficosAlto + (filas + 1) * margen + 50;
-        
+
         BufferedImage imagenCompuesta = new BufferedImage(imagenAncho, imagenAlto, BufferedImage.TYPE_INT_RGB);
         Graphics2D g2d = imagenCompuesta.createGraphics();
         g2d.setColor(Color.WHITE);
         g2d.fillRect(0, 0, imagenAncho, imagenAlto);
-        
+
         g2d.setColor(Color.BLACK);
         g2d.setFont(new Font("SansSerif", Font.BOLD, 24));
         FontMetrics fm = g2d.getFontMetrics();
         String titulo = "Variación de Precios - Últimas " + horas + " horas";
         int tituloX = (imagenAncho - fm.stringWidth(titulo)) / 2;
         g2d.drawString(titulo, tituloX, 30);
-        
+
         List<String> criptosOrdenadas = new ArrayList<>(CRIPTOS.keySet());
-        
+
         for (int i = 0; i < criptosOrdenadas.size(); i++) {
             String crypto = criptosOrdenadas.get(i);
             List<Registro> registros = obtenerDatos(crypto, horas);
-            
+
             if (!registros.isEmpty()) {
                 XYChart chart = crearGraficoIndividual(crypto, registros, graficosAncho, graficosAlto);
                 BufferedImage graficoImg = BitmapEncoder.getBufferedImage(chart);
-                
+
                 int fila = i / columnas;
                 int columna = i % columnas;
                 int x = margen + columna * (graficosAncho + margen);
                 int y = 60 + margen + fila * (graficosAlto + margen);
-                
+
                 g2d.drawImage(graficoImg, x, y, null);
             }
         }
-        
+
         g2d.dispose();
-        
+
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         ImageIO.write(imagenCompuesta, "PNG", out);
         return out.toByteArray();
@@ -321,7 +329,7 @@ public class GraficoService {
         String[] info = CRIPTOS.get(crypto);
         String nombre = info[0];
         String simbolo = info[1];
-        
+
         List<java.util.Date> fechas = new ArrayList<>();
         List<Double> precios = new ArrayList<>();
 
@@ -359,28 +367,28 @@ public class GraficoService {
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// Graficas de comparacion
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    
+
     private static final int MAX_HORAS_CONSULTA = 24;
-    
+
     // Colores para las diferentes criptomonedas
     private static final Map<String, Color> CRYPTO_COLORS = Map.of(
-        "bitcoin", new Color(247, 147, 26),     // Naranja vibrante
-        "ethereum", new Color(98, 126, 0),      // Verde caca
-        "ripple", new Color(0, 162, 232),       // Azul cielo 
-        "solana", new Color(191, 191, 191),     // Gris plateado
-        "tron", new Color(0, 255, 0),           // Verde 
-        "dogecoin", new Color(0, 0, 0),         // Negro
-        "cardano", new Color(255, 204, 0),      // Amarrillo
-        "hyperliquid", new Color(0, 0, 255),    // Azul
-        "bitcoin_cash", new Color(103, 58, 183),// Púrpura intenso
-        "chainlink", new Color(255, 0, 0)      // Rojo vivo
+            "bitcoin", new Color(247, 147, 26), // Naranja vibrante
+            "ethereum", new Color(98, 126, 0), // Verde caca
+            "ripple", new Color(0, 162, 232), // Azul cielo
+            "solana", new Color(191, 191, 191), // Gris plateado
+            "tron", new Color(0, 255, 0), // Verde
+            "dogecoin", new Color(0, 0, 0), // Negro
+            "cardano", new Color(255, 204, 0), // Amarrillo
+            "hyperliquid", new Color(0, 0, 255), // Azul
+            "bitcoin_cash", new Color(103, 58, 183), // Púrpura intenso
+            "chainlink", new Color(255, 0, 0) // Rojo vivo
     );
 
     private static void handleGraficoComparaRequest(HttpExchange exchange) throws IOException {
         try {
 
             setCORSHeaders(exchange); // <-- Agrega esta línea
-    
+
             if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
                 handleOptionsRequest(exchange);
                 return;
@@ -393,19 +401,19 @@ public class GraficoService {
 
             Map<String, String> params = parseQuery(exchange.getRequestURI().getQuery());
             String cryptosParam = params.getOrDefault("cryptos", "").toLowerCase();
-            
+
             // Obtener el rango de tiempo permitido (últimas 24 horas)
             LocalDateTime ahora = LocalDateTime.now();
             LocalDateTime maxInicio = ahora.minusHours(MAX_HORAS_CONSULTA);
-            
+
             // Parsear fechas o usar valores por defecto (últimas 3 horas)
             LocalDateTime inicio;
             LocalDateTime fin;
-            
+
             try {
                 String inicioStr = params.getOrDefault("inicio", "");
                 String finStr = params.getOrDefault("fin", "");
-                
+
                 if (inicioStr.isEmpty() || finStr.isEmpty()) {
                     // Valores por defecto: últimas 3 horas
                     fin = ahora;
@@ -413,7 +421,7 @@ public class GraficoService {
                 } else {
                     inicio = LocalDateTime.parse(inicioStr.replace(" ", "T"));
                     fin = LocalDateTime.parse(finStr.replace(" ", "T"));
-                    
+
                     // Validar que las fechas estén dentro del rango permitido
                     if (inicio.isBefore(maxInicio)) {
                         String error = "La fecha de inicio no puede ser anterior a " + maxInicio;
@@ -421,13 +429,13 @@ public class GraficoService {
                         return;
                     }
                 }
-                
+
                 if (inicio.isAfter(fin)) {
                     String error = "La fecha de inicio debe ser anterior a la fecha de fin";
                     enviarError(exchange, 400, error);
                     return;
                 }
-                
+
             } catch (Exception e) {
                 String error = "Formato de fecha inválido. Use YYYY-MM-DDTHH:MM";
                 enviarError(exchange, 400, error);
@@ -441,17 +449,17 @@ public class GraficoService {
             }
 
             List<String> cryptos = Arrays.asList(cryptosParam.split(","));
-            
+
             try {
                 Map<String, List<Registro>> datos = obtenerDatosMultiples(cryptos, inicio, fin);
-                
+
                 if (datos.isEmpty() || datos.values().stream().allMatch(List::isEmpty)) {
                     exchange.sendResponseHeaders(204, -1); // No Content
                     return;
                 }
 
                 byte[] imageBytes = generarGraficoComparaPNG(datos);
-                
+
                 exchange.getResponseHeaders().set("Content-Type", "image/png");
                 exchange.sendResponseHeaders(200, imageBytes.length);
                 try (OutputStream os = exchange.getResponseBody()) {
@@ -476,34 +484,36 @@ public class GraficoService {
         }
     }
 
-    private static Map<String, List<Registro>> obtenerDatosMultiples(List<String> cryptos, LocalDateTime inicio, LocalDateTime fin) throws SQLException {
+    private static Map<String, List<Registro>> obtenerDatosMultiples(List<String> cryptos, LocalDateTime inicio,
+            LocalDateTime fin) throws SQLException {
         Map<String, List<Registro>> datos = new HashMap<>();
 
         try (Connection conn = DriverManager.getConnection(DB_URL)) {
-            //System.out.println("Obteniendo datos desde " + inicio + " hasta " + fin);
+            // System.out.println("Obteniendo datos desde " + inicio + " hasta " + fin);
 
             for (String crypto : cryptos) {
                 List<Registro> registros = new ArrayList<>();
-                
+
                 // Usar DateTimeFormatter para el formato correcto
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-                
-                String query = String.format("""
-                    SELECT fecha_registro, precio FROM %s 
-                    WHERE fecha_registro BETWEEN STR_TO_DATE(?, '%%Y-%%m-%%d %%H:%%i:%%s') 
-                    AND STR_TO_DATE(?, '%%Y-%%m-%%d %%H:%%i:%%s')
-                    ORDER BY fecha_registro
-                """, crypto);
 
-                //System.out.println("Ejecutando query: " + query);
-                
+                String query = String.format("""
+                            SELECT fecha_registro, precio FROM %s
+                            WHERE fecha_registro BETWEEN STR_TO_DATE(?, '%%Y-%%m-%%d %%H:%%i:%%s')
+                            AND STR_TO_DATE(?, '%%Y-%%m-%%d %%H:%%i:%%s')
+                            ORDER BY fecha_registro
+                        """, crypto);
+
+                // System.out.println("Ejecutando query: " + query);
+
                 try (PreparedStatement stmt = conn.prepareStatement(query)) {
                     // Formatear las fechas correctamente para MySQL
                     stmt.setString(1, inicio.format(formatter));
                     stmt.setString(2, fin.format(formatter));
-                    
-                    //System.out.println("Parámetros: " + inicio.format(formatter) + " - " + fin.format(formatter));
-                    
+
+                    // System.out.println("Parámetros: " + inicio.format(formatter) + " - " +
+                    // fin.format(formatter));
+
                     ResultSet rs = stmt.executeQuery();
                     int count = 0;
 
@@ -514,7 +524,7 @@ public class GraficoService {
                         count++;
                     }
                 }
-                
+
                 datos.put(crypto, registros);
             }
         }
@@ -551,19 +561,20 @@ public class GraficoService {
         for (Map.Entry<String, List<Registro>> entry : datos.entrySet()) {
             String crypto = entry.getKey();
             List<Registro> registros = entry.getValue();
-            
-            if (registros.isEmpty()) continue;
-            
+
+            if (registros.isEmpty())
+                continue;
+
             List<Date> fechas = new ArrayList<>();
             List<Double> precios = new ArrayList<>();
-            
+
             for (Registro r : registros) {
                 fechas.add(Date.from(r.fecha.atZone(ZoneId.systemDefault()).toInstant()));
                 precios.add(r.precio);
             }
-            
+
             Color color = CRYPTO_COLORS.getOrDefault(crypto.toLowerCase(), new Color(52, 152, 219));
-            
+
             XYSeries series = chart.addSeries(crypto.toUpperCase(), fechas, precios);
             series.setLineColor(color);
             series.setMarkerColor(color);
@@ -583,12 +594,11 @@ public class GraficoService {
     private static void handleRegresionLineal(HttpExchange exchange) throws IOException {
 
         setCORSHeaders(exchange); // <-- Agrega esta línea
-    
+
         if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
             handleOptionsRequest(exchange);
             return;
         }
-
 
         if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
             exchange.sendResponseHeaders(405, -1);
@@ -600,8 +610,8 @@ public class GraficoService {
         int horaInicio = Integer.parseInt(params.getOrDefault("inicio", "10"));
         int horaFin = Integer.parseInt(params.getOrDefault("fin", "12"));
 
-        if (crypto.isEmpty() || !CRIPTOS.containsKey(crypto) || 
-            horaInicio < 0 || horaInicio > 23 || horaFin <= horaInicio || horaFin > 24) {
+        if (crypto.isEmpty() || !CRIPTOS.containsKey(crypto) ||
+                horaInicio < 0 || horaInicio > 23 || horaFin <= horaInicio || horaFin > 24) {
             String error = "Parámetros inválidos. Usa ?crypto=bitcoin&inicio=10&fin=12";
             exchange.sendResponseHeaders(400, error.length());
             try (OutputStream os = exchange.getResponseBody()) {
@@ -628,11 +638,11 @@ public class GraficoService {
         }
     }
 
-    private static byte[] generarGraficoRegresion(String crypto, int horaInicio, int horaFin) 
+    private static byte[] generarGraficoRegresion(String crypto, int horaInicio, int horaFin)
             throws SQLException, IOException {
-        
+
         List<Registro> registros = obtenerDatosRango(crypto, horaInicio, horaFin);
-        
+
         if (registros.isEmpty()) {
             throw new SQLException("No hay datos suficientes para el rango especificado");
         }
@@ -643,17 +653,17 @@ public class GraficoService {
 
         List<Double> tiempos = new ArrayList<>();
         List<Double> precios = new ArrayList<>();
-        
+
         for (int i = 0; i < registros.size(); i++) {
             tiempos.add((double) i);
             precios.add(registros.get(i).precio);
         }
 
         RegresionLineal regresion = calcularRegresionLineal(tiempos, precios);
-        
+
         List<Double> lineaX = new ArrayList<>();
         List<Double> lineaY = new ArrayList<>();
-        
+
         for (double i = 0; i < registros.size(); i++) {
             lineaX.add(i);
             lineaY.add(regresion.pendiente * i + regresion.interseccion);
@@ -687,7 +697,7 @@ public class GraficoService {
 
         String ecuacion = String.format("y = %.2fx + %.2f", regresion.pendiente, regresion.interseccion);
         String r2 = String.format("R² = %.4f", regresion.coeficienteDeterminacion);
-        
+
         chart.setTitle(chart.getTitle() + "\n" + ecuacion + " | " + r2);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -695,7 +705,7 @@ public class GraficoService {
         return out.toByteArray();
     }
 
-    private static List<Registro> obtenerDatosRango(String crypto, int horaInicio, int horaFin) 
+    private static List<Registro> obtenerDatosRango(String crypto, int horaInicio, int horaFin)
             throws SQLException {
         List<Registro> datos = new ArrayList<>();
 
@@ -707,17 +717,17 @@ public class GraficoService {
 
         try (Connection conn = DriverManager.getConnection(DB_URL)) {
             String query = String.format("""
-                SELECT fecha_registro, precio FROM %s
-                WHERE DATE(fecha_registro) = CURDATE()
-                AND HOUR(fecha_registro) >= ? AND HOUR(fecha_registro) < ?
-                ORDER BY fecha_registro ASC
-            """, crypto);
+                        SELECT fecha_registro, precio FROM %s
+                        WHERE DATE(fecha_registro) = CURDATE()
+                        AND HOUR(fecha_registro) >= ? AND HOUR(fecha_registro) < ?
+                        ORDER BY fecha_registro ASC
+                    """, crypto);
 
             try (PreparedStatement stmt = conn.prepareStatement(query)) {
                 stmt.setInt(1, horaInicio);
                 stmt.setInt(2, horaFin);
                 ResultSet rs = stmt.executeQuery();
-                
+
                 while (rs.next()) {
                     LocalDateTime fecha = rs.getTimestamp("fecha_registro").toLocalDateTime().minusHours(6);
                     double precio = rs.getDouble("precio");
@@ -743,16 +753,16 @@ public class GraficoService {
 
         double pendiente = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
         double interseccion = (sumY - pendiente * sumX) / n;
-        
+
         double mediaY = sumY / n;
         double ssTot = 0, ssRes = 0;
-        
+
         for (int i = 0; i < n; i++) {
             double yPred = pendiente * x.get(i) + interseccion;
             ssTot += Math.pow(y.get(i) - mediaY, 2);
             ssRes += Math.pow(y.get(i) - yPred, 2);
         }
-        
+
         double r2 = 1 - (ssRes / ssTot);
 
         return new RegresionLineal(pendiente, interseccion, r2);
